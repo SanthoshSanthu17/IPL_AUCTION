@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#ffffff">
     <meta name="description" content="Explore the TATA IPL Auction 2026 player pool, teams, and live auction room.">
     <title>TATA IPL Auction 2026</title>
-    <link rel="stylesheet" href="/assets/styles.css?v=20">
+    <link rel="stylesheet" href="/assets/styles.css?v=21">
   </head>
   <body>
     <header class="topbar">
@@ -22,6 +22,10 @@
 
     <main>
       <div id="landing-screen">
+        <section class="franchise-marquee" id="franchise-marquee" aria-label="IPL franchises">
+          <div class="franchise-marquee-track" id="franchise-marquee-track"></div>
+        </section>
+
         <nav class="auction-nav" id="auction-tabs" role="tablist" aria-label="Auction sections">
           <button class="auction-tab active" id="tab-overview" type="button" role="tab" aria-selected="true" aria-controls="overview-panel" data-tab="overview">Overview</button>
           <button class="auction-tab" id="tab-all-players" type="button" role="tab" aria-selected="false" aria-controls="players-panel" data-tab="all-players">All Players</button>
@@ -319,5 +323,7 @@
     </main>
     <footer><span>TATA IPL AUCTION 2026</span><span>PLAY FAIR. BID BOLD.</span></footer>
     <script src="/assets/app.js?v=20" defer></script>
+    <script src="/assets/franchise-strip.js?v=1" defer></script>
+    <script src="/assets/audio.js?v=1" defer></script>
   </body>
 </html>
