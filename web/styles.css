@@ -566,19 +566,20 @@ footer {
   .auction-nav { margin: 0 -2px; padding: 0 4px; }
   .auction-tab { min-height: 47px; padding: 0 13px; font-size: 10px; }
   .tab-panel { padding-top: 23px; }
-  .auction-promo { min-height: 385px; }
+  .auction-promo { min-height: 0; }
   .auction-promo-art { object-position: center center; }
   .auction-promo::after { background: linear-gradient(90deg, rgba(7,18,40,.72) 0%, rgba(7,18,40,.4) 68%, rgba(7,18,40,.14) 100%); }
-  .auction-promo-content { min-height: 385px; padding: 24px 18px; }
+  .auction-promo-content { min-height: 0; padding: 18px; }
   .auction-promo-content h2 {
     font-size: clamp(15px, calc(6.67vw - 2.87px), 26px);
   }
   .auction-promo-content > p {
     max-width: none;
+    margin-bottom: 14px;
     font-size: clamp(5.8px, calc(2.65vw - 1.6px), 10px);
     line-height: 1.5;
   }
-  .promo-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .promo-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .promo-meta div:nth-child(2) { border-right: 0; }
   .promo-meta div:last-child { grid-column: 1 / -1; padding-top: 8px; border-top: 1px solid rgba(255,255,255,.2); }
   .promo-meta strong { font-size: 12px; }
@@ -603,9 +604,11 @@ footer {
   .search-field, .select-filter { flex: auto; width: 100%; }
   .franchise-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
   .franchise-card { min-height: 124px; }
-  .franchise-card img, .franchise-marquee-card img { width: 49px; height: 49px; }
-  .franchise-card .team-logo-fallback, .franchise-marquee-card .team-logo-fallback { width: 49px; height: 49px; }
-  .franchise-marquee-card { flex-basis: 200px; min-height: 124px; }
+  .franchise-card img { width: 49px; height: 49px; }
+  .franchise-card .team-logo-fallback { width: 49px; height: 49px; }
+  .franchise-marquee-card { flex-basis: 42vw; min-height: 104px; gap: 6px; padding: 10px 6px; }
+  .franchise-marquee-card img, .franchise-marquee-card .team-logo-fallback { width: 40px; height: 40px; }
+  .franchise-marquee-name { font-size: 10px; }
   .season-pill { padding: 0 8px; font-size: 7px; }
   .auction-screen { padding-top: 18px; }
   .auction-toolbar { align-items: start; flex-direction: column; }
