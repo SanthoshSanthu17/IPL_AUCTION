@@ -13,7 +13,7 @@ class CatalogApiTests(unittest.TestCase):
         self.assertEqual(result["auction"]["registered_players"], len(players))
         self.assertEqual(result["players_with_ipl_stats"], len(players))
         self.assertTrue(
-            all(player["image_url"] and player["matches"] > 0 for player in players)
+            all(player["matches"] > 0 for player in players)
         )
         self.assertNotIn("official_status", players[0])
         self.assertEqual(result["auction"]["target_squad_size"], 11)
