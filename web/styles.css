@@ -178,20 +178,6 @@ main { width: 100%; margin: 0 auto; }
 .promo-meta div:last-child { padding-right: 0; border-right: 0; }
 .promo-meta span { color: rgba(255,255,255,.67); font-size: 7px; font-weight: 800; letter-spacing: .16em; }
 .promo-meta strong { overflow: hidden; color: #fff; font: 700 13px "Manrope", sans-serif; text-overflow: ellipsis; white-space: nowrap; }
-.event-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-.event-card {
-  display: grid;
-  gap: 8px;
-  min-height: 93px;
-  padding: 17px 19px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--surface);
-  box-shadow: 0 4px 12px rgba(27,52,84,.025);
-}
-.event-label { color: var(--subtle); font-size: 8px; font-weight: 800; letter-spacing: .15em; }
-.event-card strong { color: var(--ink); font: 700 16px "Manrope", sans-serif; }
-.event-venue strong { color: var(--blue); }
 .metrics-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 13px 0 34px; }
 .metric-card {
   display: grid;
@@ -565,10 +551,6 @@ footer {
   .section-title h2 { font-size: 21px; }
   .overview-title { align-items: flex-start; flex-direction: column; gap: 7px; }
   .overview-title h2 { font-size: clamp(18px, 5vw, 20px); }
-  .event-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
-  .event-card { min-height: 78px; padding: 13px; }
-  .event-card strong { font-size: 13px; }
-  .event-venue { grid-column: 1 / -1; }
   .metrics-grid { grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 27px; }
   .metric-card { padding: 13px; }
   .metric-card strong { font-size: 21px; }

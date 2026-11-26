@@ -59,7 +59,7 @@ function updateLiveClock() {
   }).format(now);
 }
 
-document.querySelectorAll(".brand-mark, .hero-logo").forEach((logo) => {
+document.querySelectorAll(".brand-mark").forEach((logo) => {
   logo.addEventListener("error", () => {
     const fallback = document.createElement("span");
     fallback.className = "brand-mark-fallback";
@@ -459,7 +459,6 @@ function renderState(state) {
   const previousResultCount = currentState?.results.length;
   currentState = state;
   const isAdmin = Boolean(currentSession?.adminToken);
-  document.querySelector(".hero").classList.add("hidden");
   landingScreen.classList.add("hidden");
   auctionScreen.classList.remove("hidden");
   roomChip.classList.remove("hidden");
