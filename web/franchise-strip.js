@@ -1,6 +1,7 @@
 (() => {
+  const strip = document.querySelector("#franchise-marquee");
   const track = document.querySelector("#franchise-marquee-track");
-  if (!track) return;
+  if (!strip || !track) return;
 
   // Franchise colours: gradient start, gradient end, text colour.
   const FRANCHISE_COLORS = {
@@ -59,4 +60,12 @@
       });
     })
     .catch(() => { /* strip simply stays empty */ });
+
+  // The strip sits outside the landing screen, so hide it together with it.
+  const landing = document.querySelector("#landing-screen");
+  if (landing) {
+    const sync = () => strip.classList.toggle("hidden", landing.classList.contains("hidden"));
+    new MutationObserver(sync).observe(landing, { attributes: true, attributeFilter: ["class"] });
+    sync();
+  }
 })();

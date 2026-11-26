@@ -37,7 +37,7 @@ button { cursor: pointer; }
   top: 0;
   z-index: 20;
   height: 72px;
-  padding: 0 clamp(20px, 5vw, 76px);
+  padding: 0 clamp(16px, 2vw, 32px);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -83,7 +83,7 @@ button { cursor: pointer; }
 
 main { width: 100%; margin: 0 auto; }
 #landing-screen, .auction-screen {
-  width: min(1240px, calc(100% - 40px));
+  width: calc(100% - clamp(32px, 4vw, 64px));
   margin: 0 auto;
 }
 .panel-kicker, .section-kicker {
@@ -371,7 +371,7 @@ input::placeholder { color: #9aa5b2; }
 .franchise-card-action { color: var(--blue); font-size: 7px; font-weight: 800; letter-spacing: .12em; }
 .franchise-marquee {
   overflow: hidden;
-  margin-bottom: 18px;
+  margin-top: 22px;
   padding: 4px 0;
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 3%, #000 97%, transparent);
   mask-image: linear-gradient(90deg, transparent, #000 3%, #000 97%, transparent);
@@ -542,7 +542,7 @@ input::placeholder { color: #9aa5b2; }
 footer {
   display: flex;
   justify-content: space-between;
-  width: min(1240px, calc(100% - 40px));
+  width: calc(100% - clamp(32px, 4vw, 64px));
   margin: 18px auto 0;
   padding: 15px 0 21px;
   border-top: 1px solid var(--line);
