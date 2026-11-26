@@ -165,9 +165,15 @@ def _load_name_aliases() -> dict[str, str]:
 
 
 def _default_cutoff() -> date:
+    """Return the stats cutoff for the auction season.
+
+    For season_year S the default is S-05-31 (end of that IPL season).
+    Previously this returned the prior calendar year-end, which silently
+    excluded the just-completed season's matches after the auction.
+    """
     with AUCTION_INFO_FILE.open("r", encoding="utf-8") as file:
         season_year = int(json.load(file)["season_year"])
-    return date(season_year - 1, 12, 31)
+    return date(season_year, 5, 31)
 
 
 def update_player_csv(archive_file: BinaryIO, cutoff: date) -> tuple[int, int]:

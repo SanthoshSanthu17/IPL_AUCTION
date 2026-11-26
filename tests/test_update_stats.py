@@ -125,5 +125,9 @@ class CricsheetStatsTests(unittest.TestCase):
         self.assertIsNone(non_striker.strike_rate)
 
 
+    def test_default_cutoff_uses_season_end_may_31(self) -> None:
+        from ipl_auction.players.update_stats import _default_cutoff
+        self.assertEqual(_default_cutoff(), date(2026, 5, 31))
+
 if __name__ == "__main__":
     unittest.main()
