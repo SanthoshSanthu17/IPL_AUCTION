@@ -123,6 +123,14 @@ function makePlayerPhoto(player, sizeClass = "player-photo-small") {
   return photo;
 }
 
+function makeEliteBadge() {
+  const badge = document.createElement("span");
+  badge.className = "elite-badge";
+  badge.textContent = "ELITE";
+  badge.title = "Elite player";
+  return badge;
+}
+
 function makePlayerCell(player) {
   const cell = document.createElement("td");
   cell.className = "player-cell";
@@ -133,6 +141,7 @@ function makePlayerCell(player) {
   name.className = "player-cell-name";
   name.textContent = player.name;
   identity.append(name);
+  if (player.elite) identity.append(makeEliteBadge());
   cell.append(identity);
   return cell;
 }
@@ -637,6 +646,7 @@ function renderPlayer(state) {
   document.querySelector("#current-player-name").textContent = player
     ? player.name
     : state.status === "complete" ? "Every lot has been called" : lobbyContent.title;
+  if (player?.elite) document.querySelector("#current-player-name").append(makeEliteBadge());
   document.querySelector("#player-country").textContent = player
     ? `${player.nationality || "Nationality not set"} • ${player.role || "Role not set"}`
     : state.status === "complete"
@@ -906,6 +916,7 @@ function renderLiveTeams(state) {
         details.className = "roster-player";
         const playerName = document.createElement("strong");
         playerName.textContent = player.name;
+        if (player.elite) playerName.append(makeEliteBadge());
         const role = document.createElement("small");
         role.textContent = player.squad_role_label || "Role pending";
         details.append(playerName, role);

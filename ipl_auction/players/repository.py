@@ -1,11 +1,13 @@
 import csv
 import math
+from dataclasses import replace
 
 from ipl_auction.paths import DATA_DIR
 from ipl_auction.players.models import Player
 
 
 PLAYER_FILE = DATA_DIR / "players.csv"
+ELITE_FILE = DATA_DIR / "elite_players.csv"
 REQUIRED_COLUMNS = {
     "player_id",
     "name",
@@ -38,6 +40,18 @@ def _optional_integer(value: str | None, row_number: int, column: str) -> int | 
             f"Player data row {row_number} must use a whole number for {column}."
         )
     return int(number)
+
+
+def load_elite_ids(known_ids: set[str]) -> set[str]:
+    """Return the listed player_ids that exist in the pool (the file is optional)."""
+    if not ELITE_FILE.exists():
+        return set()
+    with ELITE_FILE.open("r", newline="", encoding="utf-8-sig") as file:
+        reader = csv.DictReader(file)
+        if "player_id" not in (reader.fieldnames or []):
+            raise ValueError("Elite player data is missing the player_id column.")
+        elite_ids = {(row["player_id"] or "").strip() for row in reader}
+    return elite_ids & known_ids
 
 
 def load_players() -> list[Player]:
@@ -93,4 +107,7 @@ def load_players() -> list[Player]:
                     image_url=(row.get("image_url") or "").strip() or None,
                 )
             )
-        return players
+        elite_ids = load_elite_ids(seen_ids)
+        return [
+            replace(player, elite=player.player_id in elite_ids) for player in players
+        ]

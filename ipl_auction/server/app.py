@@ -53,6 +53,7 @@ async def catalog() -> dict:
                 "nationality": player.nationality,
                 "base_price_crore": player.base_price_crore,
                 "image_url": player.image_url,
+                "elite": player.elite,
                 "matches": player.matches,
                 "runs": player.runs,
                 "wickets": player.wickets,

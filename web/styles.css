@@ -319,6 +319,7 @@ input::placeholder { color: #9aa5b2; }
 .player-cell { color: var(--ink) !important; font-weight: 700; }
 .player-cell-identity { display: flex; align-items: center; gap: 9px; min-width: 150px; }
 .player-cell-name { color: var(--ink); font-size: 10px; font-weight: 700; }
+.elite-badge { display: inline-block; flex-shrink: 0; margin-left: 6px; padding: 2px 6px; border-radius: 10px; color: #3a2600; background: linear-gradient(135deg, #f7d154, #e0962b); font: 800 7px "Manrope", sans-serif; letter-spacing: .12em; vertical-align: middle; }
 .player-photo { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; overflow: hidden; border: 1px solid #e6ebf1; background: linear-gradient(145deg, #f8fafc, #e8eef5); }
 .player-photo img { width: 100%; height: 100%; object-fit: contain; object-position: center bottom; }
 .player-photo-small { width: 58px; height: 68px; border-radius: 7px; }

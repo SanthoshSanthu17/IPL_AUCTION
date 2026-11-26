@@ -15,6 +15,7 @@ class Player:
     strike_rate: float | None = None
     economy: float | None = None
     image_url: str | None = None
+    elite: bool = False
 
     @property
     def has_ipl_stats(self) -> bool:
