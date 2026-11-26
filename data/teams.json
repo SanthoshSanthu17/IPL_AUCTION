@@ -1,0 +1,62 @@
+[
+  {
+    "team_id": "csk",
+    "name": "Chennai Super Kings",
+    "short_name": "CSK",
+    "logo_url": "https://www.iplt20.com/api/team-assets?brand=ipl&pathname=static/teams/1622/icon-dark.svg"
+  },
+  {
+    "team_id": "dc",
+    "name": "Delhi Capitals",
+    "short_name": "DC",
+    "logo_url": "https://www.iplt20.com/api/team-assets?brand=ipl&pathname=static/teams/1396/icon-dark.svg"
+  },
+  {
+    "team_id": "gt",
+    "name": "Gujarat Titans",
+    "short_name": "GT",
+    "logo_url": "https://www.iplt20.com/api/team-assets?brand=ipl&pathname=static/teams/2879/icon-dark.svg"
+  },
+  {
+    "team_id": "kkr",
+    "name": "Kolkata Knight Riders",
+    "short_name": "KKR",
+    "logo_url": "https://www.iplt20.com/api/team-assets?brand=ipl&pathname=static/teams/1873/icon-dark.svg"
+  },
+  {
+    "team_id": "lsg",
+    "name": "Lucknow Super Giants",
+    "short_name": "LSG",
+    "logo_url": "https://www.iplt20.com/api/team-assets?brand=ipl&pathname=static/teams/2880/icon-dark.svg"
+  },
+  {
+    "team_id": "mi",
+    "name": "Mumbai Indians",
+    "short_name": "MI",
+    "logo_url": "https://www.iplt20.com/api/team-assets?brand=ipl&pathname=static/teams/1854/icon-dark.svg"
+  },
+  {
+    "team_id": "pbks",
+    "name": "Punjab Kings",
+    "short_name": "PBKS",
+    "logo_url": "https://www.iplt20.com/api/team-assets?brand=ipl&pathname=static/teams/2040/icon-dark.svg"
+  },
+  {
+    "team_id": "rr",
+    "name": "Rajasthan Royals",
+    "short_name": "RR",
+    "logo_url": "https://www.iplt20.com/api/team-assets?brand=ipl&pathname=static/teams/1558/icon-dark.svg"
+  },
+  {
+    "team_id": "rcb",
+    "name": "Royal Challengers Bengaluru",
+    "short_name": "RCB",
+    "logo_url": "https://www.iplt20.com/api/team-assets?brand=ipl&pathname=static/teams/2138/icon-dark.svg"
+  },
+  {
+    "team_id": "srh",
+    "name": "Sunrisers Hyderabad",
+    "short_name": "SRH",
+    "logo_url": "https://www.iplt20.com/api/team-assets?brand=ipl&pathname=static/teams/1153/icon-dark.svg"
+  }
+]

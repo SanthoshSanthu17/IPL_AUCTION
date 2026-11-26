@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="description" content="Explore the TATA IPL Auction 2026 player pool, teams, and live auction room.">
+    <title>TATA IPL Auction 2026</title>
+    <link rel="stylesheet" href="/assets/styles.css?v=19">
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="IPL Auction home">
+        <img class="brand-mark" src="https://images.ctfassets.net/jot2qw8s50z1/68BTfjWpntEFEBXMhfs9Jf/27b791fb9dc3ee514ef5cddb5e6defb8/image.png" alt="IPL logo">
+        <span class="brand-copy"><strong>TATA IPL</strong><small>AUCTION 2026</small></span>
+      </a>
+      <div class="topbar-right">
+        <span class="connection-indicator" id="connection-indicator"><i></i><span>OFFLINE</span></span>
+        <span class="room-chip hidden" id="room-chip">ROOM <strong id="room-code-label">------</strong></span>
+      </div>
+    </header>
+
+    <main>
+      <div id="landing-screen">
+        <nav class="auction-nav" id="auction-tabs" role="tablist" aria-label="Auction sections">
+          <button class="auction-tab active" id="tab-overview" type="button" role="tab" aria-selected="true" aria-controls="overview-panel" data-tab="overview">Overview</button>
+          <button class="auction-tab" id="tab-all-players" type="button" role="tab" aria-selected="false" aria-controls="players-panel" data-tab="all-players">All Players</button>
+          <button class="auction-tab" id="tab-sold" type="button" role="tab" aria-selected="false" aria-controls="players-panel" data-tab="sold">Sold</button>
+          <button class="auction-tab" id="tab-unsold" type="button" role="tab" aria-selected="false" aria-controls="players-panel" data-tab="unsold">Unsold</button>
+          <button class="auction-tab" id="tab-teams" type="button" role="tab" aria-selected="false" aria-controls="teams-panel" data-tab="teams">Teams</button>
+        </nav>
+
+        <section class="tab-panel" id="overview-panel" role="tabpanel" aria-labelledby="tab-overview">
+          <div class="section-title overview-title">
+            <div>
+              <span class="section-kicker">AUCTION OVERVIEW</span>
+              <h2>The road to the next season</h2>
+            </div>
+            <span class="season-pill">SEASON 2026</span>
+          </div>
+
+          <section class="auction-promo" aria-labelledby="auction-promo-title">
+            <img class="auction-promo-art" src="/assets/auction-background.png" alt="" aria-hidden="true">
+            <div class="auction-promo-content">
+              <span class="promo-live-pill"><i></i> YOUR LIVE AUCTION</span>
+              <h2 id="auction-promo-title">THE AUCTION <span>STARTS HERE</span></h2>
+              <p>Bring your friends to the bidding floor. Build your squad, one call at a time.</p>
+              <div class="promo-meta">
+                <div><span>LIVE DATE</span><strong id="auction-date">Loading date…</strong></div>
+                <div><span>LOCAL TIME</span><strong id="auction-time">Loading time…</strong></div>
+                <div><span>VENUE</span><strong id="auction-venue">Online auction room</strong></div>
+              </div>
+            </div>
+          </section>
+
+          <div class="metrics-grid">
+            <article class="metric-card"><strong id="pool-count">38</strong><span>PLAYERS IN THE POOL</span></article>
+            <article class="metric-card"><strong id="lineup-count">11</strong><span>LINEUP ROLE SLOTS</span></article>
+            <article class="metric-card"><strong id="franchise-count">10</strong><span>FRANCHISES</span></article>
+            <article class="metric-card"><strong id="purse-card">₹125 Cr</strong><span>STARTING PURSE</span></article>
+          </div>
+
+          <div class="section-title entry-title">
+            <div>
+              <span class="section-kicker">PLAY WITH YOUR CREW</span>
+              <h2>Join the bidding floor</h2>
+            </div>
+            <span class="purse-note">Starting purse <strong id="purse-value">₹125 Cr</strong> per franchise</span>
+          </div>
+
+          <section class="entry-grid" id="entry-screen">
+            <article class="panel setup-panel">
+              <div class="panel-kicker">01 / HOST A ROOM</div>
+              <h3>Start your auction</h3>
+              <p class="panel-copy">Choose your franchise, create a private room, and invite your friends. You can host and bid.</p>
+              <form id="create-form">
+                <label for="admin-name">Your name</label>
+                <input id="admin-name" name="name" maxlength="32" placeholder="Auction host" required>
+                <label for="admin-team-choice">Your franchise</label>
+                <select id="admin-team-choice" required>
+                  <option value="">Loading franchises…</option>
+                </select>
+                <div class="field-row">
+                  <div>
+                    <label for="timer-setting">Bid clock</label>
+                    <select id="timer-setting">
+                      <option value="5">5 seconds</option>
+                      <option value="10" selected>10 seconds</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label for="increment-setting">Bid increase</label>
+                    <select id="increment-setting">
+                      <option value="0.05">₹0.05 Cr</option>
+                      <option value="0.10" selected>₹0.10 Cr</option>
+                      <option value="0.25">₹0.25 Cr</option>
+                      <option value="0.50">₹0.50 Cr</option>
+                      <option value="1.00">₹1.00 Cr</option>
+                    </select>
+                  </div>
+                </div>
+                <button class="button button-primary button-wide" type="submit">Create auction room <span>↗</span></button>
+              </form>
+              <div class="room-result hidden" id="created-room">
+                <span>ROOM CODE</span>
+                <strong id="created-room-code"></strong>
+                <small>Share this code with your team owners.</small>
+              </div>
+            </article>
+
+            <article class="panel join-panel">
+              <div class="panel-kicker">02 / JOIN THE AUCTION</div>
+              <h3>Choose your franchise</h3>
+              <p class="panel-copy">Enter your room code, choose a team, and bid live with your friends.</p>
+              <form id="join-form">
+                <label for="join-room-code">Room code</label>
+                <input id="join-room-code" name="room" maxlength="6" placeholder="e.g. 7K2P9Q" autocapitalize="characters" required>
+                <label for="player-name">Your name</label>
+                <input id="player-name" name="name" maxlength="32" placeholder="Name shown to the room" required>
+                <label for="team-choice">Choose a franchise</label>
+                <select id="team-choice" required>
+                  <option value="">Loading franchises…</option>
+                </select>
+                <button class="button button-secondary button-wide" type="submit">Enter the auction <span>→</span></button>
+              </form>
+            </article>
+            <p class="entry-error hidden" id="entry-error" role="alert"></p>
+          </section>
+
+          <p class="catalog-note" id="catalog-note">Loading the official auction catalogue…</p>
+
+          <section class="franchise-preview">
+            <div class="section-title compact-title">
+              <div>
+                <span class="section-kicker">TEN TEAMS. ONE TROPHY.</span>
+                <h2>Meet the franchises</h2>
+              </div>
+              <button class="text-button" type="button" data-tab-link="teams">View all teams <span>→</span></button>
+            </div>
+            <div class="franchise-strip" id="team-preview-list"></div>
+          </section>
+        </section>
+
+        <section class="tab-panel hidden" id="players-panel" role="tabpanel" aria-labelledby="tab-all-players">
+          <div class="section-title">
+            <div>
+              <span class="section-kicker" id="players-kicker">PLAYER CATALOGUE</span>
+              <h2 id="players-heading">All Players</h2>
+              <p class="section-description" id="players-description">Browse the official 2026 auction register.</p>
+            </div>
+            <span class="season-pill" id="players-count">38 PLAYERS</span>
+          </div>
+          <div class="player-filters">
+            <label class="search-field" for="player-search">
+              <span aria-hidden="true">⌕</span>
+              <input id="player-search" type="search" placeholder="Search players or nationality" autocomplete="off">
+            </label>
+            <label class="select-filter" for="role-filter">
+              <span>ROLE</span>
+              <select id="role-filter">
+                <option value="">All roles</option>
+                <option value="Batter">Batter</option>
+                <option value="Bowler">Bowler</option>
+                <option value="All-Rounder">All-Rounder</option>
+                <option value="Wicketkeeper">Wicketkeeper</option>
+              </select>
+            </label>
+          </div>
+          <div class="table-wrap">
+            <table class="player-table">
+              <thead><tr id="players-table-head"></tr></thead>
+              <tbody id="players-table-body"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="tab-panel hidden" id="teams-panel" role="tabpanel" aria-labelledby="tab-teams">
+          <div class="section-title">
+            <div>
+              <span class="section-kicker">THE FRANCHISES</span>
+              <h2>Meet the teams</h2>
+              <p class="section-description">Ten teams building their squads for the 2026 season.</p>
+            </div>
+            <span class="season-pill">10 FRANCHISES</span>
+          </div>
+          <div class="franchise-grid" id="franchise-grid"></div>
+        </section>
+      </div>
+
+      <section class="auction-screen hidden" id="auction-screen">
+        <div class="auction-toolbar">
+          <div>
+            <div class="panel-kicker" id="auction-mode-label">LIVE AUCTION</div>
+            <h2 id="auction-heading">The bidding floor</h2>
+          </div>
+          <div class="auction-controls" id="admin-controls">
+            <div class="auction-admin-settings hidden" id="auction-admin-settings">
+              <div class="admin-control-field">
+                <label for="room-timer-setting">LOT TIMER</label>
+                <select id="room-timer-setting">
+                  <option value="5">5 seconds</option>
+                  <option value="10">10 seconds</option>
+                </select>
+              </div>
+              <button class="button button-secondary" id="apply-timer-button" type="button">Apply</button>
+              <button class="button button-pause" id="pause-button" type="button">Pause auction</button>
+            </div>
+            <button class="button button-primary hidden" id="start-button" type="button">Start auction</button>
+          </div>
+        </div>
+        <div class="auction-layout">
+          <div class="auction-player-column">
+            <section class="player-stage panel">
+              <div class="stage-topline">
+                <span class="live-pill" id="auction-status"><i></i> WAITING FOR HOST</span>
+                <span class="player-count" id="player-counter">PLAYER -- / --</span>
+              </div>
+              <div class="player-info">
+                <div class="player-identity">
+                  <div class="player-photo-slot hidden" id="current-player-portrait" aria-hidden="true"></div>
+                  <div class="player-details">
+                    <div class="player-role" id="player-role">AUCTION LOBBY</div>
+                    <h3 id="current-player-name">Waiting for the host</h3>
+                    <p class="player-country" id="player-country">The host will start the auction; then the first player appears here.</p>
+                  </div>
+                </div>
+                <div class="stat-grid" id="stat-grid"></div>
+              </div>
+              <div class="player-role-fit hidden" id="player-role-fit" aria-live="polite">
+                <span class="role-fit-label" id="role-fit-label">ELIGIBLE LINEUP ROLES</span>
+                <div class="role-fit-options" id="role-fit-options"></div>
+              </div>
+              <div class="own-role-progress" id="own-role-progress"></div>
+              <div class="player-price-line">
+                <div><span>BASE PRICE</span><strong id="base-price">—</strong></div>
+                <div class="current-price"><span>CURRENT BID</span><strong id="current-price">—</strong></div>
+              </div>
+              <div class="bid-footer">
+                <div class="highest-bid" id="highest-bid">No bids yet <span>Be first to raise.</span></div>
+                <button class="button button-bid" id="bid-button" type="button" disabled>Raise bid <span>↗</span></button>
+              </div>
+              <div class="timer-track"><div id="timer-bar"></div></div>
+              <div class="timer-label"><span>HAMMER CLOCK</span><strong id="timer-value">—</strong></div>
+            </section>
+            <section class="hammer-announcement" id="hammer-announcement" role="status" aria-live="polite" aria-atomic="true" aria-hidden="true">
+              <div class="hammer-card">
+                <div class="hammer-icon" aria-hidden="true">
+                  <svg viewBox="0 0 120 120">
+                    <g class="hammer-gavel">
+                      <rect x="54" y="38" width="13" height="62" rx="6" fill="#c47b36"/>
+                      <path d="M25 26c0-7 6-13 13-13h46c7 0 13 6 13 13v13c0 7-6 13-13 13H38c-7 0-13-6-13-13V26Z" fill="#f3bd62" stroke="#fff0c7" stroke-width="3"/>
+                      <path d="M34 16v32m54-32v32" stroke="#fff0c7" stroke-opacity=".75" stroke-width="4"/>
+                      <rect x="37" y="92" width="48" height="13" rx="5" fill="#9c5c2c"/>
+                    </g>
+                  </svg>
+                </div>
+                <span class="hammer-overline" id="hammer-overline">SOLD!</span>
+                <h2 class="hammer-player" id="hammer-player"></h2>
+                <div class="hammer-award" id="hammer-award">
+                  <span>AWARDED TO</span>
+                  <div class="hammer-team"><span id="hammer-team-logo"></span><strong id="hammer-team"></strong></div>
+                  <strong class="hammer-price" id="hammer-price"></strong>
+                  <small id="hammer-role"></small>
+                </div>
+                <p class="hammer-unsold-note hidden" id="hammer-unsold-note">The hammer fell — this player goes unsold.</p>
+              </div>
+            </section>
+          </div>
+
+          <aside class="side-column">
+            <section class="panel teams-panel">
+              <div class="section-heading">
+                <div><div class="panel-kicker">THE FRANCHISES</div><h3>Team purses</h3></div>
+                <span class="team-count">10 TEAMS</span>
+              </div>
+              <div class="team-list" id="team-list"></div>
+            </section>
+            <section class="panel results-panel">
+              <div class="section-heading">
+                <div><div class="panel-kicker">THE LEDGER</div><h3>Latest sales</h3></div>
+                <span class="team-count" id="sale-count">0 SALES</span>
+              </div>
+              <div class="sales-list" id="sales-list"><p class="empty-state">The first hammer is waiting.</p></div>
+            </section>
+            <div class="admin-note hidden" id="admin-note"></div>
+          </aside>
+        </div>
+
+        <section class="live-board panel" aria-labelledby="live-board-title">
+          <div class="live-board-heading">
+            <div>
+              <span class="section-kicker">LIVE ROOM TRACKER</span>
+              <h2 id="live-board-title">Players & franchise squads</h2>
+              <p>Follow the upcoming lots, live results, and each team’s lineup score.</p>
+            </div>
+            <span class="season-pill" id="live-board-summary">0 / 38 PLAYERS CALLED</span>
+          </div>
+          <nav class="live-board-tabs" id="live-board-tabs" role="tablist" aria-label="Live auction data">
+            <button type="button" role="tab" aria-selected="true" aria-controls="live-player-panel" class="live-board-tab active" data-live-tab="all">All Players</button>
+            <button type="button" role="tab" aria-selected="false" aria-controls="live-player-panel" class="live-board-tab" data-live-tab="sold">Sold</button>
+            <button type="button" role="tab" aria-selected="false" aria-controls="live-player-panel" class="live-board-tab" data-live-tab="unsold">Unsold</button>
+            <button type="button" role="tab" aria-selected="false" aria-controls="live-team-panel" class="live-board-tab" data-live-tab="teams">Teams</button>
+          </nav>
+          <div class="live-player-panel" id="live-player-panel">
+            <div class="table-wrap">
+              <table class="player-table live-player-table">
+                <thead><tr id="live-player-head"></tr></thead>
+                <tbody id="live-player-body"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="live-team-panel hidden" id="live-team-panel">
+            <p class="score-explainer">Lineup score measures filled role slots out of 11. It reflects squad balance, not player performance.</p>
+            <div class="live-team-grid" id="live-team-grid"></div>
+          </div>
+        </section>
+      </section>
+      <div class="toast hidden" id="toast" role="status"></div>
+    </main>
+    <footer><span>TATA IPL AUCTION 2026</span><span>PLAY FAIR. BID BOLD.</span></footer>
+    <script src="/assets/app.js" defer></script>
+  </body>
+</html>

@@ -1,0 +1,1 @@
+"""Auction rules and outcomes."""
