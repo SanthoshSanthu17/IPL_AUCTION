@@ -32,6 +32,7 @@
           <button class="auction-tab" id="tab-sold" type="button" role="tab" aria-selected="false" aria-controls="players-panel" data-tab="sold">Sold</button>
           <button class="auction-tab" id="tab-unsold" type="button" role="tab" aria-selected="false" aria-controls="players-panel" data-tab="unsold">Unsold</button>
           <button class="auction-tab" id="tab-teams" type="button" role="tab" aria-selected="false" aria-controls="teams-panel" data-tab="teams">Teams</button>
+          <button class="auction-tab" id="tab-past-winners" type="button" role="tab" aria-selected="false" aria-controls="winners-panel" data-tab="past-winners">Past Winners</button>
         </nav>
 
         <section class="tab-panel" id="overview-panel" role="tabpanel" aria-labelledby="tab-overview">
@@ -189,6 +190,31 @@
             <span class="season-pill">10 FRANCHISES</span>
           </div>
           <div class="franchise-grid" id="franchise-grid"></div>
+        </section>
+
+        <section class="tab-panel hidden" id="winners-panel" role="tabpanel" aria-labelledby="tab-past-winners">
+          <div class="section-title">
+            <div>
+              <span class="section-kicker">HALL OF FAME</span>
+              <h2>Past winners</h2>
+              <p class="section-description">The champion of every completed tournament, newest first.</p>
+            </div>
+            <span class="season-pill" id="winners-count">0 SEASONS</span>
+          </div>
+          <div class="table-wrap">
+            <table class="player-table">
+              <thead>
+                <tr>
+                  <th scope="col">SEASON</th>
+                  <th scope="col">WINNER</th>
+                  <th scope="col">RUNNER-UP</th>
+                  <th scope="col">DATE</th>
+                  <th scope="col">ROOM</th>
+                </tr>
+              </thead>
+              <tbody id="winners-table-body"></tbody>
+            </table>
+          </div>
         </section>
       </div>
 
@@ -360,7 +386,7 @@
       <div class="toast hidden" id="toast" role="status"></div>
     </main>
     <footer><span>TATA IPL AUCTION 2026</span><span>PLAY FAIR. BID BOLD.</span></footer>
-    <script src="/assets/app.js?v=22" defer></script>
+    <script src="/assets/app.js?v=23" defer></script>
     <script src="/assets/franchise-strip.js?v=1" defer></script>
     <script src="/assets/audio.js?v=1" defer></script>
   </body>

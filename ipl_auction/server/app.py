@@ -17,6 +17,7 @@ from ipl_auction.players.sets import (
     set_numbers,
 )
 from ipl_auction.server.rooms import RoomManager
+from ipl_auction.server.winners import list_winners
 from ipl_auction.teams.models import TeamState
 from ipl_auction.teams.repository import load_default_purse, load_teams
 
@@ -87,6 +88,38 @@ async def catalog() -> dict:
             for team in teams
         ],
     }
+
+
+@app.get("/api/past-winners")
+async def past_winners() -> dict:
+    try:
+        teams = {team.team_id: team for team in load_teams()}
+    except (OSError, ValueError) as error:
+        raise HTTPException(status_code=500, detail=str(error)) from error
+
+    def describe(team_id: str) -> dict:
+        team = teams.get(team_id)
+        return {
+            "team_id": team_id,
+            "name": team.name if team else team_id.upper(),
+            "short_name": team.short_name if team else team_id.upper(),
+            "logo_url": team.logo_url if team else "",
+        }
+
+    winners = []
+    for record in list_winners():
+        recorded_at = str(record.get("recorded_at", ""))
+        winners.append(
+            {
+                "season": record.get("season"),
+                "winner": describe(str(record.get("winner_team_id", ""))),
+                "runner_up": describe(str(record.get("runner_up_team_id", ""))),
+                "room_code": record.get("room_code", ""),
+                "recorded_at": recorded_at,
+                "date": recorded_at[:10],
+            }
+        )
+    return {"winners": winners}
 
 
 @app.post("/api/rooms")

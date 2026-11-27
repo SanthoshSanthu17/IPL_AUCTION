@@ -236,11 +236,71 @@ function selectFranchise(team) {
   showToast(`${team.name} selected. Enter your room code and name to join.`);
 }
 
+function renderPastWinners(winners) {
+  const body = document.querySelector("#winners-table-body");
+  document.querySelector("#winners-count").textContent =
+    `${winners.length} ${winners.length === 1 ? "SEASON" : "SEASONS"}`;
+
+  if (!winners.length) {
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+    cell.colSpan = 5;
+    cell.className = "empty-row";
+    cell.textContent = "No tournament has been completed yet.";
+    row.append(cell);
+    body.replaceChildren(row);
+    return;
+  }
+
+  const teamCell = (team) => {
+    const cell = document.createElement("td");
+    const wrapper = document.createElement("span");
+    wrapper.className = "result-team";
+    const name = document.createElement("span");
+    name.textContent = team.name;
+    wrapper.append(makeTeamLogo(team), name);
+    cell.append(wrapper);
+    return cell;
+  };
+
+  body.replaceChildren(...winners.map((entry) => {
+    const row = document.createElement("tr");
+    const season = document.createElement("td");
+    season.textContent = `Season ${entry.season}`;
+    const date = document.createElement("td");
+    date.textContent = entry.date || "—";
+    const room = document.createElement("td");
+    room.textContent = entry.room_code || "—";
+    row.append(season, teamCell(entry.winner), teamCell(entry.runner_up), date, room);
+    return row;
+  }));
+}
+
+async function loadPastWinners() {
+  try {
+    const response = await fetch("/api/past-winners");
+    if (!response.ok) throw new Error("Could not load past winners.");
+    const result = await response.json();
+    renderPastWinners(result.winners || []);
+  } catch (error) {
+    const body = document.querySelector("#winners-table-body");
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+    cell.colSpan = 5;
+    cell.className = "empty-row";
+    cell.textContent = error.message;
+    row.append(cell);
+    body.replaceChildren(row);
+  }
+}
+
 function setActiveTab(tab) {
   activeTab = tab;
   const panelId = tab === "overview"
     ? "overview-panel"
-    : tab === "teams" ? "teams-panel" : "players-panel";
+    : tab === "teams"
+      ? "teams-panel"
+      : tab === "past-winners" ? "winners-panel" : "players-panel";
 
   document.querySelectorAll(".auction-tab").forEach((button) => {
     const selected = button.dataset.tab === tab;
@@ -251,7 +311,9 @@ function setActiveTab(tab) {
     panel.classList.toggle("hidden", panel.id !== panelId);
   });
 
-  if (tab !== "overview" && tab !== "teams") {
+  if (tab === "past-winners") {
+    loadPastWinners();
+  } else if (tab !== "overview" && tab !== "teams") {
     document.querySelector("#players-panel").setAttribute(
       "aria-labelledby",
       `tab-${tab === "all-players" ? "all-players" : tab}`,
@@ -365,7 +427,7 @@ async function loadCatalog() {
     }
 
     renderFranchises(catalogData.teams);
-    renderPlayerTable(activeTab === "overview" || activeTab === "teams" ? "all-players" : activeTab);
+    renderPlayerTable(["overview", "teams", "past-winners"].includes(activeTab) ? "all-players" : activeTab);
   } catch (error) {
     document.querySelector("#catalog-note").textContent = error.message;
   }
