@@ -102,6 +102,7 @@ main { width: 100%; margin: 0 auto; }
   background: #fff;
   scrollbar-width: thin;
 }
+.room-mode-nav { margin-bottom: 16px; }
 .auction-tab {
   position: relative;
   flex: 0 0 auto;
@@ -303,6 +304,7 @@ input::placeholder { color: #9aa5b2; }
 .select-filter select { min-height: 41px; font-size: 10px; }
 .table-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
 .player-table { width: 100%; min-width: 1000px; border-collapse: collapse; text-align: left; }
+.standings-table { min-width: 480px; }
 .player-table th {
   padding: 11px 15px;
   color: #65748b;
@@ -558,11 +560,182 @@ footer {
   letter-spacing: .15em;
 }
 
+/* Tournament & Live Match UI */
+.tournament-screen { display: grid; gap: 18px; }
+.tournament-overview-panel,
+.live-match-panel,
+.tournament-fixtures-panel,
+.tournament-standings-panel,
+.tournament-bracket-panel,
+.scorecard-modal { padding: 18px; }
+.tournament-metrics { margin: 14px 0 0; }
+
+.champion-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 22px 24px;
+  border: 1px solid #f0d7a8;
+  background: linear-gradient(125deg, #102e57 0%, #1c4c89 100%);
+  color: #fff;
+}
+.champion-banner h2 { margin: 6px 0 4px; font: 800 clamp(22px, 3vw, 32px)/1.1 "Manrope", sans-serif; color: #ffd18a; }
+.champion-banner p { margin: 0 0 4px; font-size: 13px; color: rgba(255,255,255,.92); }
+.champion-banner small { color: rgba(255,255,255,.76); font-size: 11px; }
+.champion-logo-slot img { width: 68px; height: 68px; object-fit: contain; }
+
+.fixtures-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+.fixture-card {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fafbfd;
+}
+.fixture-card.mine { border-color: #93b5df; background: #f4f8fd; }
+.fixture-card.live { border-color: #6bc89b; background: #f1faf5; }
+.fixture-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.fixture-teams { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.fixture-team-side { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.fixture-team-side img { width: 28px; height: 28px; object-fit: contain; }
+.fixture-team-side strong { font-size: 12px; color: var(--blue-deep); }
+.muted-tbd { color: var(--subtle); font-size: 11px; font-weight: 700; }
+.fixture-vs { color: var(--subtle); font-size: 9px; font-weight: 800; }
+.fixture-meta { margin: 0; color: var(--muted); font-size: 10px; }
+.fixture-actions { display: flex; gap: 8px; }
+.fixture-actions .button { width: 100%; min-height: 36px; }
+
+.tournament-lower-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 16px;
+}
+.bracket-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+.bracket-card {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #fafbfd;
+}
+.bracket-team {
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: #fff;
+  border: 1px solid #e8edf3;
+  font-size: 11px;
+  font-weight: 600;
+}
+.bracket-team.winner { border-color: #9ed9bc; background: #e8f7ef; color: #147047; font-weight: 800; }
+.bracket-card small { color: var(--muted); font-size: 9px; }
+
+/* Live Match Broadcast Panel */
+.live-match-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.live-match-header h3 { margin: 8px 0 4px; color: var(--blue-deep); font: 800 20px "Manrope", sans-serif; }
+.live-match-header p { margin: 0; color: var(--muted); font-size: 11px; }
+.live-match-controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.speed-controls { display: flex; gap: 6px; }
+.speed-btn.active { border-color: var(--blue); background: var(--blue-soft); }
+
+.scoreboard-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 16px 18px;
+  border-radius: 10px;
+  background: linear-gradient(105deg, #102e57, #1c4c89);
+  color: #fff;
+}
+.scoreboard-main { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.scoreboard-main span { font-size: 14px; font-weight: 700; color: #ffd18a; }
+.scoreboard-main strong { font: 800 30px/1 "Manrope", sans-serif; }
+.scoreboard-main small { font-size: 13px; color: rgba(255,255,255,.82); }
+.scoreboard-chase { font-size: 12px; font-weight: 600; color: rgba(255,255,255,.92); }
+
+.match-actors-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+.actor-card {
+  display: grid;
+  gap: 4px;
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fafbfd;
+}
+.actor-card strong { color: var(--blue-deep); font-size: 13px; }
+.actor-card small { color: var(--muted); font-size: 10px; }
+
+.recent-balls-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.recent-balls-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.ball-chip {
+  display: inline-grid;
+  place-items: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 7px;
+  border-radius: 50%;
+  border: 1px solid #d5dfec;
+  background: #f4f8fd;
+  color: var(--blue-deep);
+  font: 800 11px "Manrope", sans-serif;
+}
+.ball-chip.boundary { background: #e8f7ef; border-color: #9ed9bc; color: #147047; }
+.ball-chip.wicket { background: #fdecec; border-color: #eab3b1; color: #a9322f; }
+
+.live-commentary-box {
+  margin: 12px 0 0;
+  padding: 11px 14px;
+  border-left: 3px solid var(--orange);
+  border-radius: 0 8px 8px 0;
+  background: #fff8ef;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.scorecard-body { display: grid; gap: 18px; margin-top: 14px; }
+.innings-scorecard-block { display: grid; gap: 10px; }
+.innings-scorecard-block h4 { margin: 0; color: var(--blue-deep); font: 800 14px "Manrope", sans-serif; }
+.innings-scorecard-block .player-table { min-width: 560px; }
+
 @media (max-width: 900px) {
   .franchise-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .auction-layout { grid-template-columns: minmax(0, 1fr); }
   .side-column { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
   .admin-note { grid-column: 1 / -1; }
+  .tournament-lower-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 650px) {
   .topbar { height: 64px; padding: 0 16px; }
@@ -636,6 +809,8 @@ footer {
   .live-board { padding: 13px; }
   .live-board-heading { flex-direction: column; }
   .live-team-grid { grid-template-columns: 1fr; }
+  .match-actors-grid { grid-template-columns: 1fr; }
+  .champion-banner { flex-direction: column; align-items: flex-start; }
   footer { margin-top: 18px; font-size: 7px; }
 }
 @media (prefers-reduced-motion: reduce) {

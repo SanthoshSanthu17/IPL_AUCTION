@@ -19,6 +19,11 @@ let announcementTimeout;
 let setBannerTimeout;
 let activeTab = "overview";
 let activeLiveTab = "all";
+let activeRoomTab = "auction";
+let autoSwitchedToTournament = false;
+let activeMatchId = null;
+let activeMatchRole = null;
+let activeMatchState = null;
 let xiSelection = new Set();
 let catalogData = { player_records: [], teams: [], auction: {} };
 
@@ -72,6 +77,12 @@ document.querySelectorAll(".brand-mark").forEach((logo) => {
 });
 
 function makeTeamLogo(team, className = "") {
+  if (!team) {
+    const fallback = document.createElement("span");
+    fallback.className = `${className} team-logo-fallback`;
+    fallback.textContent = "TBD";
+    return fallback;
+  }
   if (team.logo_url) {
     const image = document.createElement("img");
     image.className = [className, team.team_id === "rr" ? "team-logo-rr" : ""]
@@ -302,7 +313,7 @@ function setActiveTab(tab) {
       ? "teams-panel"
       : tab === "past-winners" ? "winners-panel" : "players-panel";
 
-  document.querySelectorAll(".auction-tab").forEach((button) => {
+  document.querySelectorAll(".auction-tab[data-tab]").forEach((button) => {
     const selected = button.dataset.tab === tab;
     button.classList.toggle("active", selected);
     button.setAttribute("aria-selected", String(selected));
@@ -320,6 +331,17 @@ function setActiveTab(tab) {
     );
     renderPlayerTable(tab);
   }
+}
+
+function setRoomTab(tab) {
+  activeRoomTab = tab;
+  document.querySelectorAll("[data-room-tab]").forEach((btn) => {
+    const active = btn.dataset.roomTab === tab;
+    btn.classList.toggle("active", active);
+    btn.setAttribute("aria-selected", String(active));
+  });
+  document.querySelector("#room-auction-view").classList.toggle("hidden", tab !== "auction");
+  document.querySelector("#room-tournament-view").classList.toggle("hidden", tab !== "tournament");
 }
 
 function renderPlayerTable(tab) {
@@ -505,6 +527,12 @@ function connect(session) {
       admin_token: session.adminToken,
     }));
     setConnected(true);
+    if (activeMatchId && activeMatchRole) {
+      socket.send(JSON.stringify({
+        type: activeMatchRole === "participant" ? "join_match" : "join_spectator",
+        match_id: activeMatchId,
+      }));
+    }
   });
 
   socket.addEventListener("message", (event) => {
@@ -519,7 +547,49 @@ function connect(session) {
       }
       return;
     }
-    if (message.type === "state") renderState(message.state);
+    if (message.type === "state") {
+      renderState(message.state);
+      return;
+    }
+    if (message.type === "match_started" || message.type === "match_snapshot") {
+      activeMatchId = message.match.match_id;
+      activeMatchRole = message.role || activeMatchRole || "spectator";
+      activeMatchState = message.match;
+      setRoomTab("tournament");
+      renderLiveMatch(activeMatchState, activeMatchRole);
+      return;
+    }
+    if (message.type === "ball_update" || message.type === "score_update" || message.type === "innings_completed" || message.type === "super_over_started") {
+      if (message.match && message.match.match_id === activeMatchId) {
+        activeMatchState = message.match;
+        renderLiveMatch(activeMatchState, activeMatchRole);
+      }
+      return;
+    }
+    if (message.type === "match_completed") {
+      if (message.match && message.match.match_id === activeMatchId) {
+        activeMatchState = message.match;
+        renderLiveMatch(activeMatchState, activeMatchRole);
+      }
+      if (message.result) {
+        showToast(`${message.result.winner_team_name} won! (${message.result.margin})`);
+        renderScorecardModal(message.result);
+      }
+      return;
+    }
+    if (message.type === "match_scorecard" && message.result) {
+      renderScorecardModal(message.result);
+      return;
+    }
+    if (message.type === "tournament_standings_updated" && currentState?.tournament) {
+      currentState.tournament.standings = message.standings || [];
+      renderTournament(currentState);
+      return;
+    }
+    if (message.type === "playoff_bracket_updated" && message.tournament && currentState) {
+      currentState.tournament = message.tournament;
+      renderTournament(currentState);
+    }
   });
 
   socket.addEventListener("close", () => {
@@ -549,16 +619,32 @@ function renderState(state) {
   auctionScreen.classList.remove("hidden");
   roomChip.classList.remove("hidden");
   document.querySelector("#room-code-label").textContent = state.room_code;
-  document.querySelector("#auction-mode-label").textContent = state.status === "live"
-    ? "LIVE AUCTION"
-    : state.status === "paused" ? "AUCTION PAUSED"
-      : state.status === "lobby" ? isAdmin ? "HOST & PARTICIPANT" : "AUCTION LOBBY"
-        : state.status === "complete" ? "PLAYING XI" : "AUCTION ROOM";
-  document.querySelector("#auction-heading").textContent = state.status === "complete"
-    ? "Auction complete"
-    : state.status === "paused" ? "The auction is paused"
-      : state.status === "lobby" ? isAdmin ? "Ready to call the first player" : "Waiting for the host"
-        : "The bidding floor";
+
+  const hasTournament = Boolean(state.tournament && state.tournament.active);
+  const roomModeNav = document.querySelector("#room-mode-nav");
+  roomModeNav.classList.toggle("hidden", !hasTournament);
+
+  if (hasTournament && !autoSwitchedToTournament) {
+    autoSwitchedToTournament = true;
+    setRoomTab("tournament");
+  } else if (!hasTournament) {
+    setRoomTab("auction");
+  }
+
+  document.querySelector("#auction-mode-label").textContent = hasTournament
+    ? "T20 TOURNAMENT"
+    : state.status === "live"
+      ? "LIVE AUCTION"
+      : state.status === "paused" ? "AUCTION PAUSED"
+        : state.status === "lobby" ? isAdmin ? "HOST & PARTICIPANT" : "AUCTION LOBBY"
+          : state.status === "complete" ? "PLAYING XI" : "AUCTION ROOM";
+  document.querySelector("#auction-heading").textContent = hasTournament
+    ? (state.tournament.champion ? `Champion: ${state.tournament.champion.name}` : state.tournament.current_stage)
+    : state.status === "complete"
+      ? "Auction complete"
+      : state.status === "paused" ? "The auction is paused"
+        : state.status === "lobby" ? isAdmin ? "Ready to call the first player" : "Waiting for the host"
+          : "The bidding floor";
 
   const adminNote = document.querySelector("#admin-note");
   adminNote.classList.toggle("hidden", !isAdmin);
@@ -581,10 +667,312 @@ function renderState(state) {
   renderSales(state);
   renderLiveBoard(state);
   renderXi(state);
+  if (hasTournament) {
+    renderTournament(state);
+  }
   updateTimer(state);
   if (previousResultCount != null && state.results.length > previousResultCount) {
     showHammerAnnouncement(state.results[state.results.length - 1]);
   }
+}
+
+function renderTournament(state) {
+  const t = state.tournament;
+  if (!t) return;
+
+  document.querySelector("#tournament-stage-heading").textContent = t.current_stage || "T20 Tournament";
+  document.querySelector("#tournament-counts-pill").textContent =
+    `${t.counts.completed} / ${t.counts.total} COMPLETED`;
+  document.querySelector("#t-teams-count").textContent = t.total_teams;
+  document.querySelector("#t-upcoming-count").textContent = t.counts.upcoming;
+  document.querySelector("#t-live-count").textContent = t.counts.live;
+  document.querySelector("#t-completed-count").textContent = t.counts.completed;
+
+  // Champion banner
+  const champBanner = document.querySelector("#tournament-champion-banner");
+  champBanner.classList.toggle("hidden", !t.champion);
+  if (t.champion) {
+    document.querySelector("#champion-team-name").textContent = t.champion.name;
+    document.querySelector("#champion-margin").textContent = t.final_result?.margin || "Tournament Winners";
+    const potm = t.final_result?.player_of_the_match;
+    document.querySelector("#champion-potm").textContent = potm
+      ? `Player of the Match: ${potm.player_name} (${potm.summary})`
+      : "";
+    const logoSlot = document.querySelector("#champion-team-logo");
+    logoSlot.replaceChildren(makeTeamLogo(t.champion));
+    document.querySelector("#champion-scorecard-btn").onclick = () => {
+      if (t.final_result) renderScorecardModal(t.final_result);
+    };
+  }
+
+  // Fixtures Grid
+  const ownTeamId = currentSession?.teamId;
+  const grid = document.querySelector("#tournament-fixtures-grid");
+  grid.replaceChildren();
+  t.fixtures.forEach((fx) => {
+    const isMine = ownTeamId && (fx.team_a?.team_id === ownTeamId || fx.team_b?.team_id === ownTeamId);
+    const card = document.createElement("article");
+    card.className = `fixture-card${isMine ? " mine" : ""}${fx.status === "live" ? " live" : ""}`;
+
+    const top = document.createElement("div");
+    top.className = "fixture-top";
+    const badge = document.createElement("span");
+    badge.className = "panel-kicker";
+    badge.textContent = `MATCH ${fx.fixture_number} · ${fx.stage.toUpperCase()}`;
+    const pill = document.createElement("span");
+    pill.className = `status-chip status-${fx.status === "completed" ? "sold" : fx.status === "live" ? "live" : "upcoming"}`;
+    pill.textContent = fx.status === "live" ? "LIVE" : fx.status === "completed" ? "COMPLETED" : "UPCOMING";
+    top.append(badge, pill);
+
+    const teamsRow = document.createElement("div");
+    teamsRow.className = "fixture-teams";
+
+    const makeSide = (team, tbdLabel) => {
+      const box = document.createElement("div");
+      box.className = "fixture-team-side";
+      if (team) {
+        box.append(makeTeamLogo(team));
+        const nm = document.createElement("strong");
+        nm.textContent = team.short_name || team.name;
+        box.append(nm);
+      } else {
+        const nm = document.createElement("span");
+        nm.className = "muted-tbd";
+        nm.textContent = tbdLabel || "TBD";
+        box.append(nm);
+      }
+      return box;
+    };
+
+    const vs = document.createElement("span");
+    vs.className = "fixture-vs";
+    vs.textContent = "VS";
+    teamsRow.append(makeSide(fx.team_a, fx.tbd_a_label), vs, makeSide(fx.team_b, fx.tbd_b_label));
+
+    const meta = document.createElement("p");
+    meta.className = "fixture-meta";
+    if (fx.status === "live" && fx.live_score) {
+      meta.textContent = `${fx.live_score.batting_team_name}: ${fx.live_score.runs}/${fx.live_score.wickets} (${fx.live_score.overs} ov)`;
+    } else if (fx.status === "completed" && fx.result_summary) {
+      meta.textContent = fx.result_summary;
+    } else if (!fx.is_ready) {
+      meta.textContent = "Awaiting qualifying teams";
+    } else {
+      meta.textContent = isMine ? "Your scheduled fixture" : "Ready to start";
+    }
+
+    const actions = document.createElement("div");
+    actions.className = "fixture-actions";
+
+    if (fx.status === "upcoming" && fx.is_ready && isMine) {
+      const startBtn = document.createElement("button");
+      startBtn.type = "button";
+      startBtn.className = "button button-primary";
+      startBtn.textContent = "Start Match";
+      startBtn.addEventListener("click", () => sendAction("start_match", { match_id: fx.match_id }));
+      actions.append(startBtn);
+    } else if (fx.status === "live") {
+      if (isMine) {
+        const joinBtn = document.createElement("button");
+        joinBtn.type = "button";
+        joinBtn.className = "button button-primary";
+        joinBtn.textContent = "Open Live Match";
+        joinBtn.addEventListener("click", () => sendAction("join_match", { match_id: fx.match_id }));
+        actions.append(joinBtn);
+      } else {
+        const watchBtn = document.createElement("button");
+        watchBtn.type = "button";
+        watchBtn.className = "button button-secondary";
+        watchBtn.textContent = "Watch Live";
+        watchBtn.addEventListener("click", () => sendAction("join_spectator", { match_id: fx.match_id }));
+        actions.append(watchBtn);
+      }
+    } else if (fx.status === "completed") {
+      const scBtn = document.createElement("button");
+      scBtn.type = "button";
+      scBtn.className = "button button-secondary";
+      scBtn.textContent = "View Scorecard";
+      scBtn.addEventListener("click", () => sendAction("get_match_scorecard", { match_id: fx.match_id }));
+      actions.append(scBtn);
+    }
+
+    card.append(top, teamsRow, meta, actions);
+    grid.append(card);
+  });
+
+  // Points table
+  const standingsSection = document.querySelector("#tournament-standings-section");
+  standingsSection.classList.toggle("hidden", !t.standings || t.standings.length === 0);
+  if (t.standings && t.standings.length > 0) {
+    const body = document.querySelector("#tournament-standings-body");
+    body.replaceChildren(...t.standings.map((row) => {
+      const tr = document.createElement("tr");
+      if (row.team_id === ownTeamId) tr.classList.add("live-current");
+      const pos = document.createElement("td");
+      pos.textContent = row.position;
+      const teamTd = document.createElement("td");
+      const wrap = document.createElement("span");
+      wrap.className = "result-team";
+      wrap.append(makeTeamLogo(row), document.createTextNode(row.name));
+      teamTd.append(wrap);
+      const p = document.createElement("td");
+      p.textContent = row.played;
+      const w = document.createElement("td");
+      w.textContent = row.won;
+      const l = document.createElement("td");
+      l.textContent = row.lost;
+      const pts = document.createElement("td");
+      pts.className = "price-cell";
+      pts.textContent = row.points;
+      const nrr = document.createElement("td");
+      nrr.textContent = row.nrr >= 0 ? `+${row.nrr.toFixed(3)}` : row.nrr.toFixed(3);
+      tr.append(pos, teamTd, p, w, l, pts, nrr);
+      return tr;
+    }));
+  }
+
+  // Playoff bracket
+  const bracketGrid = document.querySelector("#tournament-bracket-grid");
+  bracketGrid.replaceChildren();
+  const playoffFixtures = t.fixtures.filter((fx) => fx.is_playoff);
+  playoffFixtures.forEach((fx) => {
+    const slot = document.createElement("div");
+    slot.className = "bracket-card";
+    const title = document.createElement("span");
+    title.className = "panel-kicker";
+    title.textContent = fx.stage.toUpperCase();
+    const lineA = document.createElement("div");
+    lineA.className = `bracket-team${fx.winner_team_id && fx.winner_team_id === fx.team_a?.team_id ? " winner" : ""}`;
+    lineA.textContent = fx.team_a ? fx.team_a.name : fx.tbd_a_label;
+    const lineB = document.createElement("div");
+    lineB.className = `bracket-team${fx.winner_team_id && fx.winner_team_id === fx.team_b?.team_id ? " winner" : ""}`;
+    lineB.textContent = fx.team_b ? fx.team_b.name : fx.tbd_b_label;
+    const note = document.createElement("small");
+    note.textContent = fx.result_summary || (fx.status === "live" ? "Live now" : "Pending");
+    slot.append(title, lineA, lineB, note);
+    bracketGrid.append(slot);
+  });
+}
+
+function renderLiveMatch(match, role) {
+  const panel = document.querySelector("#live-match-panel");
+  if (!match) {
+    panel.classList.add("hidden");
+    return;
+  }
+  panel.classList.remove("hidden");
+
+  const isParticipant = role === "participant";
+  const pill = document.querySelector("#live-match-role-pill");
+  pill.innerHTML = `<i></i> ${isParticipant ? "YOUR MATCH · LIVE" : "SPECTATOR MODE · READ ONLY"}`;
+
+  const speedControls = document.querySelector("#match-speed-controls");
+  speedControls.classList.toggle("hidden", !isParticipant || match.completed);
+  speedControls.querySelectorAll(".speed-btn").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.speed === match.speed);
+  });
+
+  document.querySelector("#live-match-title").textContent =
+    `${match.batting_team_name} vs ${match.bowling_team_name}`;
+  document.querySelector("#live-match-innings-label").textContent = match.is_super_over
+    ? `Super Over #${match.super_over_round} · Innings ${match.innings_number}`
+    : `Innings ${match.innings_number} of 2`;
+
+  document.querySelector("#sb-batting-team").textContent = match.batting_team_name;
+  document.querySelector("#sb-score").textContent = `${match.runs}/${match.wickets}`;
+  document.querySelector("#sb-overs").textContent = `(${match.overs} ov)`;
+
+  const chaseBox = document.querySelector("#sb-chase-info");
+  if (match.completed && match.result) {
+    chaseBox.textContent = match.result.margin;
+  } else if (match.target != null) {
+    chaseBox.textContent = `Target: ${match.target} · Need ${match.runs_needed} off ${match.balls_remaining} balls (RRR: ${match.required_run_rate ?? "—"})`;
+  } else {
+    chaseBox.textContent = "1st Innings · Setting the target";
+  }
+
+  document.querySelector("#sb-striker").textContent = match.striker ? `${match.striker.player_name}*` : "—";
+  document.querySelector("#sb-striker-stats").textContent = match.striker
+    ? `${match.striker.runs} (${match.striker.balls}) · 4s: ${match.striker.fours} · 6s: ${match.striker.sixes}`
+    : "—";
+
+  document.querySelector("#sb-non-striker").textContent = match.non_striker ? match.non_striker.player_name : "—";
+  document.querySelector("#sb-non-striker-stats").textContent = match.non_striker
+    ? `${match.non_striker.runs} (${match.non_striker.balls})`
+    : "—";
+
+  document.querySelector("#sb-bowler").textContent = match.bowler ? match.bowler.player_name : "—";
+  document.querySelector("#sb-bowler-stats").textContent = match.bowler
+    ? `${match.bowler.overs}-${match.bowler.maidens}-${match.bowler.runs_conceded}-${match.bowler.wickets} (Econ ${match.bowler.economy})`
+    : "—";
+
+  const recentBox = document.querySelector("#sb-recent-balls");
+  recentBox.replaceChildren(...(match.last_six_balls || []).map((ev) => {
+    const chip = document.createElement("span");
+    chip.className = "ball-chip";
+    if (ev.is_wicket) {
+      chip.classList.add("wicket");
+      chip.textContent = "W";
+    } else if (ev.extra_type === "wide") {
+      chip.textContent = "Wd";
+    } else if (ev.extra_type === "noball") {
+      chip.textContent = `${ev.runs_off_bat}nb`;
+    } else {
+      if (ev.runs_off_bat === 4 || ev.runs_off_bat === 6) chip.classList.add("boundary");
+      chip.textContent = String(ev.runs_off_bat);
+    }
+    return chip;
+  }));
+
+  document.querySelector("#sb-commentary").textContent = match.last_commentary || "";
+}
+
+function renderScorecardModal(result) {
+  const panel = document.querySelector("#match-scorecard-panel");
+  panel.classList.remove("hidden");
+  document.querySelector("#sc-match-title").textContent =
+    `${result.winner_team_name} vs ${result.loser_team_name}`;
+  document.querySelector("#sc-match-margin").textContent =
+    `${result.margin} · Player of the Match: ${result.player_of_the_match?.player_name || "—"}`;
+
+  const body = document.querySelector("#sc-body");
+  body.replaceChildren();
+
+  const allInnings = [...(result.innings || []), ...(result.super_over_innings || [])];
+  allInnings.forEach((inn) => {
+    const block = document.createElement("div");
+    block.className = "innings-scorecard-block";
+    const heading = document.createElement("h4");
+    heading.textContent = `${inn.is_super_over ? "[Super Over] " : ""}${inn.batting_team_name} — ${inn.runs}/${inn.wickets} (${inn.overs} ov)`;
+    block.append(heading);
+
+    const batTable = document.createElement("table");
+    batTable.className = "player-table";
+    batTable.innerHTML = `<thead><tr><th>BATTER</th><th>DISMISSAL</th><th>R</th><th>B</th><th>4s</th><th>6s</th><th>SR</th></tr></thead>`;
+    const batBody = document.createElement("tbody");
+    (inn.batting || []).forEach((b) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${b.player_name}</td><td>${b.dismissal}</td><td class="price-cell">${b.runs}</td><td>${b.balls}</td><td>${b.fours}</td><td>${b.sixes}</td><td>${b.strike_rate.toFixed(1)}</td>`;
+      batBody.append(tr);
+    });
+    batTable.append(batBody);
+    block.append(batTable);
+
+    const bowlTable = document.createElement("table");
+    bowlTable.className = "player-table";
+    bowlTable.innerHTML = `<thead><tr><th>BOWLER</th><th>O</th><th>M</th><th>R</th><th>W</th><th>ECON</th></tr></thead>`;
+    const bowlBody = document.createElement("tbody");
+    (inn.bowling || []).forEach((w) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${w.player_name}</td><td>${w.overs}</td><td>${w.maidens}</td><td>${w.runs_conceded}</td><td class="price-cell">${w.wickets}</td><td>${w.economy.toFixed(2)}</td>`;
+      bowlBody.append(tr);
+    });
+    bowlTable.append(bowlBody);
+    block.append(bowlTable);
+
+    body.append(block);
+  });
+  panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
 function renderAdminControls(state, isAdmin) {
@@ -814,7 +1202,6 @@ function updateSetBanner(state) {
     if (remaining != null && remaining <= info.seconds) {
       show = true;
     } else if (remaining != null && state.status === "between") {
-      // Wait for the hammer announcement to finish, then show the banner.
       setBannerTimeout = setTimeout(() => {
         if (currentState === state) updateSetBanner(state);
       }, (remaining - info.seconds) * 1000 + 30);
@@ -1190,7 +1577,7 @@ function renderXi(state) {
   const nameOf = (teamId) => state.teams.find((team) => team.team_id === teamId)?.name || teamId;
   waiting.classList.toggle("all-locked", xi.all_locked);
   waiting.textContent = xi.all_locked
-    ? "All Playing XIs are locked. Ready for the toss of Match 1."
+    ? "All Playing XIs are locked. Tournament fixtures are ready in the Tournament tab."
     : `Waiting for ${xi.waiting_team_ids.length} franchise${xi.waiting_team_ids.length === 1 ? "" : "s"} to lock: ${xi.waiting_team_ids.map(nameOf).join(", ")}`;
 
   const ranking = document.querySelector("#xi-ranking");
@@ -1268,8 +1655,11 @@ function updateTimer(state) {
   });
 }
 
-document.querySelectorAll(".auction-tab").forEach((button) => {
+document.querySelectorAll(".auction-tab[data-tab]").forEach((button) => {
   button.addEventListener("click", () => setActiveTab(button.dataset.tab));
+});
+document.querySelectorAll("[data-room-tab]").forEach((button) => {
+  button.addEventListener("click", () => setRoomTab(button.dataset.roomTab));
 });
 document.querySelectorAll("[data-tab-link]").forEach((button) => {
   button.addEventListener("click", () => {
@@ -1301,6 +1691,24 @@ document.querySelector("#xi-lock-button").addEventListener("click", () => {
 document.querySelector("#xi-autolock-button").addEventListener("click", () => sendAction("auto_lock"));
 document.querySelector("#join-room-code").addEventListener("input", (event) => {
   event.target.value = event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+});
+document.querySelectorAll(".speed-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    if (!activeMatchId) return;
+    sendAction("set_match_speed", { match_id: activeMatchId, speed: btn.dataset.speed });
+  });
+});
+document.querySelector("#leave-match-btn").addEventListener("click", () => {
+  if (activeMatchId) {
+    sendAction("leave_match", { match_id: activeMatchId });
+  }
+  activeMatchId = null;
+  activeMatchRole = null;
+  activeMatchState = null;
+  document.querySelector("#live-match-panel").classList.add("hidden");
+});
+document.querySelector("#close-scorecard-btn").addEventListener("click", () => {
+  document.querySelector("#match-scorecard-panel").classList.add("hidden");
 });
 
 loadCatalog();

@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#ffffff">
     <meta name="description" content="Explore the TATA IPL Auction 2026 player pool, teams, and live auction room.">
     <title>TATA IPL Auction 2026</title>
-    <link rel="stylesheet" href="/assets/styles.css?v=26">
+    <link rel="stylesheet" href="/assets/styles.css?v=27">
   </head>
   <body>
     <header class="topbar">
@@ -239,154 +239,306 @@
             <button class="button button-primary hidden" id="start-button" type="button">Start auction</button>
           </div>
         </div>
-        <div class="auction-layout">
-          <div class="auction-player-column">
-            <section class="player-stage panel">
-              <div class="stage-topline">
-                <span class="live-pill" id="auction-status"><i></i> WAITING FOR HOST</span>
-                <span class="player-count" id="player-counter">PLAYER -- / --</span>
-              </div>
-              <div class="set-progress hidden" id="set-progress" aria-label="Set progress"></div>
-              <div class="player-info">
-                <div class="player-identity">
-                  <div class="player-photo-slot hidden" id="current-player-portrait" aria-hidden="true"></div>
-                  <div class="player-details">
-                    <span class="set-chip set-chip-large hidden" id="current-set-chip"></span>
-                    <div class="player-role" id="player-role">AUCTION LOBBY</div>
-                    <h3 id="current-player-name">Waiting for the host</h3>
-                    <p class="player-country" id="player-country">The host will start the auction; then the first player appears here.</p>
+
+        <nav class="auction-nav room-mode-nav hidden" id="room-mode-nav" role="tablist" aria-label="Room sections">
+          <button class="auction-tab active" id="tab-room-auction" type="button" role="tab" aria-selected="true" data-room-tab="auction">Auction &amp; Playing XI</button>
+          <button class="auction-tab" id="tab-room-tournament" type="button" role="tab" aria-selected="false" data-room-tab="tournament">Tournament</button>
+        </nav>
+
+        <div id="room-auction-view">
+          <div class="auction-layout">
+            <div class="auction-player-column">
+              <section class="player-stage panel">
+                <div class="stage-topline">
+                  <span class="live-pill" id="auction-status"><i></i> WAITING FOR HOST</span>
+                  <span class="player-count" id="player-counter">PLAYER -- / --</span>
+                </div>
+                <div class="set-progress hidden" id="set-progress" aria-label="Set progress"></div>
+                <div class="player-info">
+                  <div class="player-identity">
+                    <div class="player-photo-slot hidden" id="current-player-portrait" aria-hidden="true"></div>
+                    <div class="player-details">
+                      <span class="set-chip set-chip-large hidden" id="current-set-chip"></span>
+                      <div class="player-role" id="player-role">AUCTION LOBBY</div>
+                      <h3 id="current-player-name">Waiting for the host</h3>
+                      <p class="player-country" id="player-country">The host will start the auction; then the first player appears here.</p>
+                    </div>
                   </div>
+                  <div class="stat-grid" id="stat-grid"></div>
                 </div>
-                <div class="stat-grid" id="stat-grid"></div>
-              </div>
-              <div class="player-price-line">
-                <div><span>BASE PRICE</span><strong id="base-price">—</strong></div>
-                <div class="current-price"><span>CURRENT BID</span><strong id="current-price">—</strong></div>
-              </div>
-              <div class="bid-footer">
-                <div class="highest-bid" id="highest-bid">No bids yet <span>Be first to raise.</span></div>
-                <button class="button button-bid" id="bid-button" type="button" disabled>Raise bid <span>↗</span></button>
-              </div>
-              <div class="timer-track"><div id="timer-bar"></div></div>
-              <div class="timer-label"><span>HAMMER CLOCK</span><strong id="timer-value">—</strong></div>
-              <div class="set-banner" id="set-banner" role="status" aria-live="polite" aria-hidden="true">
-                <span class="set-banner-kicker">NEXT UP</span>
-                <strong class="set-banner-title" id="set-banner-title"></strong>
-                <span class="set-banner-note" id="set-banner-note"></span>
-              </div>
-            </section>
-            <section class="hammer-announcement" id="hammer-announcement" role="status" aria-live="polite" aria-atomic="true" aria-hidden="true">
-              <div class="hammer-card">
-                <div class="hammer-icon" aria-hidden="true">
-                  <svg viewBox="0 0 120 120">
-                    <g class="hammer-gavel">
-                      <rect x="54" y="38" width="13" height="62" rx="6" fill="#c47b36"/>
-                      <path d="M25 26c0-7 6-13 13-13h46c7 0 13 6 13 13v13c0 7-6 13-13 13H38c-7 0-13-6-13-13V26Z" fill="#f3bd62" stroke="#fff0c7" stroke-width="3"/>
-                      <path d="M34 16v32m54-32v32" stroke="#fff0c7" stroke-opacity=".75" stroke-width="4"/>
-                      <rect x="37" y="92" width="48" height="13" rx="5" fill="#9c5c2c"/>
-                    </g>
-                  </svg>
+                <div class="player-price-line">
+                  <div><span>BASE PRICE</span><strong id="base-price">—</strong></div>
+                  <div class="current-price"><span>CURRENT BID</span><strong id="current-price">—</strong></div>
                 </div>
-                <span class="hammer-overline" id="hammer-overline">SOLD!</span>
-                <h2 class="hammer-player" id="hammer-player"></h2>
-                <div class="hammer-award" id="hammer-award">
-                  <span>AWARDED TO</span>
-                  <div class="hammer-team"><span id="hammer-team-logo"></span><strong id="hammer-team"></strong></div>
-                  <strong class="hammer-price" id="hammer-price"></strong>
-                  <small id="hammer-role"></small>
+                <div class="bid-footer">
+                  <div class="highest-bid" id="highest-bid">No bids yet <span>Be first to raise.</span></div>
+                  <button class="button button-bid" id="bid-button" type="button" disabled>Raise bid <span>↗</span></button>
                 </div>
-                <p class="hammer-unsold-note hidden" id="hammer-unsold-note">The hammer fell — this player goes unsold.</p>
-              </div>
-            </section>
+                <div class="timer-track"><div id="timer-bar"></div></div>
+                <div class="timer-label"><span>HAMMER CLOCK</span><strong id="timer-value">—</strong></div>
+                <div class="set-banner" id="set-banner" role="status" aria-live="polite" aria-hidden="true">
+                  <span class="set-banner-kicker">NEXT UP</span>
+                  <strong class="set-banner-title" id="set-banner-title"></strong>
+                  <span class="set-banner-note" id="set-banner-note"></span>
+                </div>
+              </section>
+              <section class="hammer-announcement" id="hammer-announcement" role="status" aria-live="polite" aria-atomic="true" aria-hidden="true">
+                <div class="hammer-card">
+                  <div class="hammer-icon" aria-hidden="true">
+                    <svg viewBox="0 0 120 120">
+                      <g class="hammer-gavel">
+                        <rect x="54" y="38" width="13" height="62" rx="6" fill="#c47b36"/>
+                        <path d="M25 26c0-7 6-13 13-13h46c7 0 13 6 13 13v13c0 7-6 13-13 13H38c-7 0-13-6-13-13V26Z" fill="#f3bd62" stroke="#fff0c7" stroke-width="3"/>
+                        <path d="M34 16v32m54-32v32" stroke="#fff0c7" stroke-opacity=".75" stroke-width="4"/>
+                        <rect x="37" y="92" width="48" height="13" rx="5" fill="#9c5c2c"/>
+                      </g>
+                    </svg>
+                  </div>
+                  <span class="hammer-overline" id="hammer-overline">SOLD!</span>
+                  <h2 class="hammer-player" id="hammer-player"></h2>
+                  <div class="hammer-award" id="hammer-award">
+                    <span>AWARDED TO</span>
+                    <div class="hammer-team"><span id="hammer-team-logo"></span><strong id="hammer-team"></strong></div>
+                    <strong class="hammer-price" id="hammer-price"></strong>
+                    <small id="hammer-role"></small>
+                  </div>
+                  <p class="hammer-unsold-note hidden" id="hammer-unsold-note">The hammer fell — this player goes unsold.</p>
+                </div>
+              </section>
+            </div>
+
+            <aside class="side-column">
+              <section class="panel teams-panel">
+                <div class="section-heading">
+                  <div><div class="panel-kicker">THE FRANCHISES</div><h3>Team purses</h3></div>
+                  <span class="team-count">10 TEAMS</span>
+                </div>
+                <div class="team-list" id="team-list"></div>
+              </section>
+              <section class="panel results-panel">
+                <div class="section-heading">
+                  <div><div class="panel-kicker">THE LEDGER</div><h3>Latest sales</h3></div>
+                  <span class="team-count" id="sale-count">0 SALES</span>
+                </div>
+                <div class="sales-list" id="sales-list"><p class="empty-state">The first hammer is waiting.</p></div>
+              </section>
+              <div class="admin-note hidden" id="admin-note"></div>
+            </aside>
           </div>
 
-          <aside class="side-column">
-            <section class="panel teams-panel">
-              <div class="section-heading">
-                <div><div class="panel-kicker">THE FRANCHISES</div><h3>Team purses</h3></div>
-                <span class="team-count">10 TEAMS</span>
+          <section class="xi-panel panel hidden" id="xi-panel" aria-labelledby="xi-title">
+            <div class="xi-heading">
+              <div>
+                <span class="section-kicker">AFTER THE AUCTION</span>
+                <h2 id="xi-title">Select your Playing XI</h2>
+                <p id="xi-subtitle"></p>
               </div>
-              <div class="team-list" id="team-list"></div>
-            </section>
-            <section class="panel results-panel">
-              <div class="section-heading">
-                <div><div class="panel-kicker">THE LEDGER</div><h3>Latest sales</h3></div>
-                <span class="team-count" id="sale-count">0 SALES</span>
+              <span class="season-pill" id="xi-counter">0 / 11 SELECTED</span>
+            </div>
+            <div class="xi-pick" id="xi-pick">
+              <div class="xi-grid" id="xi-grid"></div>
+              <div class="xi-actions">
+                <span class="xi-status" id="xi-status"></span>
+                <button class="button button-primary" id="xi-lock-button" type="button" disabled>Lock Playing XI</button>
               </div>
-              <div class="sales-list" id="sales-list"><p class="empty-state">The first hammer is waiting.</p></div>
-            </section>
-            <div class="admin-note hidden" id="admin-note"></div>
-          </aside>
+            </div>
+            <div class="xi-result hidden" id="xi-result">
+              <div class="xi-rating-card">
+                <span class="xi-rating-label">FRANCHISE RATING</span>
+                <strong class="xi-rating-value" id="xi-rating-value">--</strong>
+                <span class="xi-rank" id="xi-rank"></span>
+              </div>
+              <div class="xi-breakdown" id="xi-breakdown"></div>
+              <div class="xi-grid xi-locked-list" id="xi-locked-list"></div>
+            </div>
+            <p class="xi-waiting" id="xi-waiting" role="status"></p>
+            <div class="xi-ranking hidden" id="xi-ranking">
+              <span class="section-kicker">FRANCHISE RATINGS</span>
+              <div class="xi-ranking-body" id="xi-ranking-body"></div>
+            </div>
+            <div class="xi-host hidden" id="xi-host">
+              <button class="button button-secondary" id="xi-autolock-button" type="button">Auto-pick and lock the remaining franchises</button>
+            </div>
+          </section>
+
+          <section class="live-board panel" aria-labelledby="live-board-title">
+            <div class="live-board-heading">
+              <div>
+                <span class="section-kicker">LIVE ROOM TRACKER</span>
+                <h2 id="live-board-title">Players & franchise squads</h2>
+                <p>Follow the upcoming lots, live results, and each franchise’s squad.</p>
+              </div>
+              <span class="season-pill" id="live-board-summary">0 / 38 PLAYERS CALLED</span>
+            </div>
+            <nav class="live-board-tabs" id="live-board-tabs" role="tablist" aria-label="Live auction data">
+              <button type="button" role="tab" aria-selected="true" aria-controls="live-player-panel" class="live-board-tab active" data-live-tab="all">All Players</button>
+              <button type="button" role="tab" aria-selected="false" aria-controls="live-player-panel" class="live-board-tab" data-live-tab="sold">Sold</button>
+              <button type="button" role="tab" aria-selected="false" aria-controls="live-player-panel" class="live-board-tab" data-live-tab="unsold">Unsold</button>
+              <button type="button" role="tab" aria-selected="false" aria-controls="live-team-panel" class="live-board-tab" data-live-tab="teams">Teams</button>
+            </nav>
+            <div class="live-player-panel" id="live-player-panel">
+              <div class="table-wrap">
+                <table class="player-table live-player-table">
+                  <thead><tr id="live-player-head"></tr></thead>
+                  <tbody id="live-player-body"></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="live-team-panel hidden" id="live-team-panel">
+              <p class="score-explainer">Each franchise builds a squad of 15 players in any mix of roles. Player ratings stay hidden; franchise ratings appear after every Playing XI is locked.</p>
+              <div class="live-team-grid" id="live-team-grid"></div>
+            </div>
+          </section>
         </div>
 
-        <section class="xi-panel panel hidden" id="xi-panel" aria-labelledby="xi-title">
-          <div class="xi-heading">
-            <div>
-              <span class="section-kicker">AFTER THE AUCTION</span>
-              <h2 id="xi-title">Select your Playing XI</h2>
-              <p id="xi-subtitle"></p>
+        <section class="tournament-screen hidden" id="room-tournament-view" aria-label="T20 Tournament">
+          <section class="champion-banner panel hidden" id="tournament-champion-banner">
+            <div class="champion-banner-header">
+              <span class="panel-kicker">TATA IPL 2026 CHAMPION</span>
+              <h2 id="champion-team-name">—</h2>
+              <p id="champion-margin">—</p>
+              <small id="champion-potm"></small>
             </div>
-            <span class="season-pill" id="xi-counter">0 / 11 SELECTED</span>
-          </div>
-          <div class="xi-pick" id="xi-pick">
-            <div class="xi-grid" id="xi-grid"></div>
-            <div class="xi-actions">
-              <span class="xi-status" id="xi-status"></span>
-              <button class="button button-primary" id="xi-lock-button" type="button" disabled>Lock Playing XI</button>
-            </div>
-          </div>
-          <div class="xi-result hidden" id="xi-result">
-            <div class="xi-rating-card">
-              <span class="xi-rating-label">FRANCHISE RATING</span>
-              <strong class="xi-rating-value" id="xi-rating-value">--</strong>
-              <span class="xi-rank" id="xi-rank"></span>
-            </div>
-            <div class="xi-breakdown" id="xi-breakdown"></div>
-            <div class="xi-grid xi-locked-list" id="xi-locked-list"></div>
-          </div>
-          <p class="xi-waiting" id="xi-waiting" role="status"></p>
-          <div class="xi-ranking hidden" id="xi-ranking">
-            <span class="section-kicker">FRANCHISE RATINGS</span>
-            <div class="xi-ranking-body" id="xi-ranking-body"></div>
-          </div>
-          <div class="xi-host hidden" id="xi-host">
-            <button class="button button-secondary" id="xi-autolock-button" type="button">Auto-pick and lock the remaining franchises</button>
-          </div>
-        </section>
+            <div id="champion-team-logo" class="champion-logo-slot"></div>
+            <button class="button button-secondary" id="champion-scorecard-btn" type="button">View Final Scorecard</button>
+          </section>
 
-        <section class="live-board panel" aria-labelledby="live-board-title">
-          <div class="live-board-heading">
-            <div>
-              <span class="section-kicker">LIVE ROOM TRACKER</span>
-              <h2 id="live-board-title">Players & franchise squads</h2>
-              <p>Follow the upcoming lots, live results, and each franchise’s squad.</p>
+          <section class="panel tournament-overview-panel">
+            <div class="live-board-heading">
+              <div>
+                <span class="section-kicker">TOURNAMENT OVERVIEW</span>
+                <h2 id="tournament-stage-heading">T20 League &amp; Playoffs</h2>
+                <p>Start your assigned fixture independently or watch any live match as a spectator.</p>
+              </div>
+              <span class="season-pill" id="tournament-counts-pill">0 / 0 COMPLETED</span>
             </div>
-            <span class="season-pill" id="live-board-summary">0 / 38 PLAYERS CALLED</span>
-          </div>
-          <nav class="live-board-tabs" id="live-board-tabs" role="tablist" aria-label="Live auction data">
-            <button type="button" role="tab" aria-selected="true" aria-controls="live-player-panel" class="live-board-tab active" data-live-tab="all">All Players</button>
-            <button type="button" role="tab" aria-selected="false" aria-controls="live-player-panel" class="live-board-tab" data-live-tab="sold">Sold</button>
-            <button type="button" role="tab" aria-selected="false" aria-controls="live-player-panel" class="live-board-tab" data-live-tab="unsold">Unsold</button>
-            <button type="button" role="tab" aria-selected="false" aria-controls="live-team-panel" class="live-board-tab" data-live-tab="teams">Teams</button>
-          </nav>
-          <div class="live-player-panel" id="live-player-panel">
-            <div class="table-wrap">
-              <table class="player-table live-player-table">
-                <thead><tr id="live-player-head"></tr></thead>
-                <tbody id="live-player-body"></tbody>
-              </table>
+            <div class="metrics-grid tournament-metrics">
+              <article class="metric-card"><strong id="t-teams-count">0</strong><span>PARTICIPATING FRANCHISES</span></article>
+              <article class="metric-card"><strong id="t-upcoming-count">0</strong><span>UPCOMING FIXTURES</span></article>
+              <article class="metric-card"><strong id="t-live-count">0</strong><span>LIVE MATCHES</span></article>
+              <article class="metric-card"><strong id="t-completed-count">0</strong><span>COMPLETED MATCHES</span></article>
             </div>
+          </section>
+
+          <section class="panel live-match-panel hidden" id="live-match-panel">
+            <div class="live-match-header">
+              <div>
+                <span class="live-pill live" id="live-match-role-pill"><i></i> LIVE MATCH</span>
+                <h3 id="live-match-title">— vs —</h3>
+                <p id="live-match-innings-label">Innings 1</p>
+              </div>
+              <div class="live-match-controls">
+                <div class="speed-controls hidden" id="match-speed-controls">
+                  <button type="button" class="button button-secondary speed-btn" data-speed="normal">Normal</button>
+                  <button type="button" class="button button-secondary speed-btn" data-speed="fast">Fast</button>
+                  <button type="button" class="button button-primary speed-btn" data-speed="skip">Skip to Result</button>
+                </div>
+                <button type="button" class="button button-secondary" id="leave-match-btn">Leave Match View</button>
+              </div>
+            </div>
+
+            <div class="scoreboard-banner">
+              <div class="scoreboard-main">
+                <span id="sb-batting-team">Batting Team</span>
+                <strong id="sb-score">0/0</strong>
+                <small id="sb-overs">(0.0 ov)</small>
+              </div>
+              <div class="scoreboard-chase" id="sb-chase-info">1st Innings in progress</div>
+            </div>
+
+            <div class="match-actors-grid">
+              <div class="actor-card">
+                <span class="panel-kicker">ON STRIKE</span>
+                <strong id="sb-striker">—</strong>
+                <small id="sb-striker-stats">0 (0)</small>
+              </div>
+              <div class="actor-card">
+                <span class="panel-kicker">NON-STRIKER</span>
+                <strong id="sb-non-striker">—</strong>
+                <small id="sb-non-striker-stats">0 (0)</small>
+              </div>
+              <div class="actor-card">
+                <span class="panel-kicker">BOWLER</span>
+                <strong id="sb-bowler">—</strong>
+                <small id="sb-bowler-stats">0.0-0-0-0</small>
+              </div>
+            </div>
+
+            <div class="recent-balls-row">
+              <span class="panel-kicker">THIS OVER / LAST 6</span>
+              <div class="recent-balls-chips" id="sb-recent-balls"></div>
+            </div>
+
+            <p class="live-commentary-box" id="sb-commentary">Waiting for first delivery…</p>
+          </section>
+
+          <section class="panel tournament-fixtures-panel">
+            <div class="live-board-heading">
+              <div>
+                <span class="section-kicker">MATCH CENTRE</span>
+                <h2>Tournament Fixtures</h2>
+                <p>Your franchise's matches are highlighted. Multiple matches can run at the same time.</p>
+              </div>
+            </div>
+            <div class="fixtures-grid" id="tournament-fixtures-grid"></div>
+          </section>
+
+          <div class="tournament-lower-grid">
+            <section class="panel tournament-standings-panel" id="tournament-standings-section">
+              <div class="live-board-heading">
+                <div>
+                  <span class="section-kicker">LEAGUE STAGE</span>
+                  <h2>Points Table</h2>
+                  <p>Sorted by Points, Net Run Rate (NRR), and initial Franchise Ranking.</p>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table class="player-table standings-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">POS</th>
+                      <th scope="col">FRANCHISE</th>
+                      <th scope="col">P</th>
+                      <th scope="col">W</th>
+                      <th scope="col">L</th>
+                      <th scope="col">PTS</th>
+                      <th scope="col">NRR</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tournament-standings-body"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="panel tournament-bracket-panel">
+              <div class="live-board-heading">
+                <div>
+                  <span class="section-kicker">ROAD TO THE FINAL</span>
+                  <h2>Playoff Bracket</h2>
+                  <p>Updates automatically as league and playoff matches conclude.</p>
+                </div>
+              </div>
+              <div class="bracket-grid" id="tournament-bracket-grid"></div>
+            </section>
           </div>
-          <div class="live-team-panel hidden" id="live-team-panel">
-            <p class="score-explainer">Each franchise builds a squad of 15 players in any mix of roles. Player ratings stay hidden; franchise ratings appear after every Playing XI is locked.</p>
-            <div class="live-team-grid" id="live-team-grid"></div>
-          </div>
+
+          <section class="panel scorecard-modal hidden" id="match-scorecard-panel">
+            <div class="live-board-heading">
+              <div>
+                <span class="section-kicker">MATCH SCORECARD</span>
+                <h2 id="sc-match-title">Match Scorecard</h2>
+                <p id="sc-match-margin">—</p>
+              </div>
+              <button type="button" class="button button-secondary" id="close-scorecard-btn">Close Scorecard</button>
+            </div>
+            <div id="sc-body" class="scorecard-body"></div>
+          </section>
         </section>
       </section>
       <div class="toast hidden" id="toast" role="status"></div>
     </main>
     <footer><span>TATA IPL AUCTION 2026</span><span>PLAY FAIR. BID BOLD.</span></footer>
-    <script src="/assets/app.js?v=23" defer></script>
+    <script src="/assets/app.js?v=24" defer></script>
     <script src="/assets/franchise-strip.js?v=1" defer></script>
     <script src="/assets/audio.js?v=1" defer></script>
   </body>

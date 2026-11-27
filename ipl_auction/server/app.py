@@ -122,6 +122,43 @@ async def past_winners() -> dict:
     return {"winners": winners}
 
 
+@app.get("/api/rooms/{room_code}/tournament")
+async def get_room_tournament(room_code: str) -> dict:
+    room = room_manager.get_room(room_code)
+    if room is None:
+        raise HTTPException(status_code=404, detail="Auction room not found.")
+    async with room.lock:
+        if room.tournament is None:
+            return {"active": False}
+        return room_manager._tournament_snapshot(room, room.tournament)
+
+
+@app.get("/api/rooms/{room_code}/matches/{match_id}")
+async def get_room_match(room_code: str, match_id: str) -> dict:
+    room = room_manager.get_room(room_code)
+    if room is None:
+        raise HTTPException(status_code=404, detail="Auction room not found.")
+    if room.tournament is None:
+        raise HTTPException(status_code=404, detail="Tournament not started.")
+    tournament = room.tournament
+    session = tournament.sessions.get(match_id)
+    if session is not None:
+        async with session.lock:
+            snap = session.simulator.snapshot()
+            snap["speed"] = session.speed
+            return {"status": "live", "match": snap}
+    if match_id in tournament.completed_results:
+        return {
+            "status": "completed",
+            "result": tournament.completed_results[match_id],
+            "deliveries": tournament.completed_deliveries.get(match_id, []),
+        }
+    fixture = tournament.get_fixture(match_id)
+    if fixture is None:
+        raise HTTPException(status_code=404, detail="Match not found.")
+    return {"status": fixture.status, "match_id": match_id}
+
+
 @app.post("/api/rooms")
 async def create_room(request: CreateRoomRequest) -> dict:
     try:
