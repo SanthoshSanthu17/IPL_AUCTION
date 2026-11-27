@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from ipl_auction.players.models import Player
+from ipl_auction.teams.lineup import squad_block_reason
 from ipl_auction.teams.models import TeamState
 
 
@@ -16,6 +17,9 @@ def validate_bid(player: Player, team_state: TeamState, bid_crore: float) -> Non
         raise ValueError("Bid cannot be lower than the player's base price.")
     if bid_crore > team_state.purse_remaining_crore:
         raise ValueError("Bid exceeds the team's remaining purse.")
+    reason = squad_block_reason(player, team_state, bid_crore)
+    if reason:
+        raise ValueError(reason)
 
 
 def sell_player(

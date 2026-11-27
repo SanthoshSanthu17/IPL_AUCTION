@@ -3,6 +3,7 @@
   "season_year": 2026,
   "total_purse_per_team_crore": 125,
   "registered_players": 200,
-  "target_squad_size": 11,
+  "target_squad_size": 15,
+  "playing_xi_size": 11,
   "venue": "Online auction room"
 }

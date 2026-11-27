@@ -472,12 +472,6 @@ input::placeholder { color: #9aa5b2; }
 .team-name { overflow: hidden; color: #35445a; font-size: 9px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .team-owner { display: block; margin-top: 2px; color: var(--subtle); font-size: 7px; font-weight: 400; }
 .team-purse { color: var(--blue); font: 700 10px "Manrope", sans-serif; white-space: nowrap; }
-.player-role-fit { display: grid; gap: 7px; margin: 5px 0 9px; padding: 10px 12px; border-left: 3px solid var(--orange); border-radius: 0 7px 7px 0; background: #fff8ef; }
-.role-fit-label { color: #835626; font-size: 7px; font-weight: 800; letter-spacing: .14em; }
-.role-fit-options { display: flex; flex-wrap: wrap; gap: 5px; }
-.role-fit-chip { padding: 4px 8px; border: 1px solid #f0dfc7; border-radius: 20px; color: #72512d; background: #fff; font-size: 8px; font-weight: 700; }
-.role-fit-empty { color: var(--muted); font-size: 9px; }
-.own-role-progress { display: flex; flex-wrap: wrap; gap: 5px; margin: 7px 0 10px; }
 .role-chip { display: inline-flex; align-items: center; padding: 4px 7px; border: 1px solid #e0e6ee; border-radius: 20px; color: #637087; background: #f8fafc; font-size: 7px; font-weight: 700; white-space: nowrap; }
 .role-chip.complete { border-color: #bde4ce; color: #147047; background: #e8f7ef; }
 .sales-list { display: grid; gap: 7px; max-height: 220px; overflow: auto; }
@@ -635,4 +629,39 @@ footer {
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
+.xi-panel { margin-top: 18px; padding: 18px; }
+.xi-heading { display: flex; align-items: start; justify-content: space-between; gap: 16px; }
+.xi-heading h2 { margin: 6px 0 4px; color: var(--blue-deep); font: 750 20px "Manrope", sans-serif; letter-spacing: -.035em; }
+.xi-heading p { max-width: 640px; margin: 0; color: var(--muted); font-size: 10px; line-height: 1.5; }
+.xi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 9px; margin: 14px 0 10px; }
+.xi-card { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 9px; color: var(--ink); background: #fff; text-align: left; }
+button.xi-card:hover { border-color: #c7d3e4; background: #f8fafc; }
+.xi-card.selected { border-color: var(--blue); background: var(--blue-soft); box-shadow: inset 3px 0 0 var(--orange); }
+.xi-card-details { display: grid; gap: 3px; min-width: 0; }
+.xi-card-details strong { overflow: hidden; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.xi-card-details small { color: var(--muted); font-size: 8px; }
+.xi-actions { display: flex; align-items: center; justify-content: flex-end; gap: 14px; }
+.xi-status { color: var(--muted); font-size: 9px; font-weight: 700; }
+.xi-result { display: grid; gap: 12px; margin-top: 14px; }
+.xi-rating-card { display: flex; align-items: baseline; flex-wrap: wrap; gap: 12px; padding: 14px 16px; border-left: 3px solid var(--orange); border-radius: 0 9px 9px 0; background: #fff8ef; }
+.xi-rating-label { color: #835626; font-size: 8px; font-weight: 800; letter-spacing: .14em; }
+.xi-rating-value { color: var(--blue-deep); font: 800 34px "Manrope", sans-serif; }
+.xi-rank { color: var(--muted); font-size: 10px; font-weight: 700; }
+.xi-breakdown { display: grid; gap: 4px; max-width: 520px; }
+.xi-breakdown-row { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--line); color: var(--ink); font-size: 10px; }
+.xi-breakdown-row.negative strong { color: var(--red); }
+.xi-waiting { margin: 12px 0 0; padding: 10px 12px; border-radius: 7px; color: var(--muted); background: #f8fafc; font-size: 10px; }
+.xi-waiting.all-locked { color: #147047; background: #e8f7ef; font-weight: 700; }
+.xi-ranking { display: grid; gap: 8px; margin-top: 14px; }
+.xi-ranking-row { display: grid; grid-template-columns: 26px 30px 1fr auto; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; font-size: 10px; }
+.xi-ranking-row.own { border-color: var(--blue); background: var(--blue-soft); }
+.xi-ranking-row img, .xi-ranking-row .team-logo-fallback { width: 26px; height: 26px; object-fit: contain; }
+.xi-rank-number { color: var(--subtle); font: 800 11px "Manrope", sans-serif; }
+.xi-rank-rating { color: var(--blue); font: 800 12px "Manrope", sans-serif; }
+.xi-host { margin-top: 12px; }
+@media (max-width: 640px) {
+  .xi-heading { flex-direction: column; }
+  .xi-grid { grid-template-columns: 1fr; }
+  .xi-actions { justify-content: space-between; }
 }

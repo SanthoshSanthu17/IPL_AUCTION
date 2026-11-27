@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#ffffff">
     <meta name="description" content="Explore the TATA IPL Auction 2026 player pool, teams, and live auction room.">
     <title>TATA IPL Auction 2026</title>
-    <link rel="stylesheet" href="/assets/styles.css?v=25">
+    <link rel="stylesheet" href="/assets/styles.css?v=26">
   </head>
   <body>
     <header class="topbar">
@@ -59,7 +59,7 @@
 
           <div class="metrics-grid">
             <article class="metric-card"><strong id="pool-count">38</strong><span>PLAYERS IN THE POOL</span></article>
-            <article class="metric-card"><strong id="lineup-count">11</strong><span>LINEUP ROLE SLOTS</span></article>
+            <article class="metric-card"><strong id="lineup-count">15</strong><span>PLAYERS PER SQUAD</span></article>
             <article class="metric-card"><strong id="franchise-count">10</strong><span>FRANCHISES</span></article>
             <article class="metric-card"><strong id="purse-card">₹125 Cr</strong><span>STARTING PURSE</span></article>
           </div>
@@ -230,11 +230,6 @@
                 </div>
                 <div class="stat-grid" id="stat-grid"></div>
               </div>
-              <div class="player-role-fit hidden" id="player-role-fit" aria-live="polite">
-                <span class="role-fit-label" id="role-fit-label">ELIGIBLE LINEUP ROLES</span>
-                <div class="role-fit-options" id="role-fit-options"></div>
-              </div>
-              <div class="own-role-progress" id="own-role-progress"></div>
               <div class="player-price-line">
                 <div><span>BASE PRICE</span><strong id="base-price">—</strong></div>
                 <div class="current-price"><span>CURRENT BID</span><strong id="current-price">—</strong></div>
@@ -290,12 +285,47 @@
           </aside>
         </div>
 
+        <section class="xi-panel panel hidden" id="xi-panel" aria-labelledby="xi-title">
+          <div class="xi-heading">
+            <div>
+              <span class="section-kicker">AFTER THE AUCTION</span>
+              <h2 id="xi-title">Select your Playing XI</h2>
+              <p id="xi-subtitle"></p>
+            </div>
+            <span class="season-pill" id="xi-counter">0 / 11 SELECTED</span>
+          </div>
+          <div class="xi-pick" id="xi-pick">
+            <div class="xi-grid" id="xi-grid"></div>
+            <div class="xi-actions">
+              <span class="xi-status" id="xi-status"></span>
+              <button class="button button-primary" id="xi-lock-button" type="button" disabled>Lock Playing XI</button>
+            </div>
+          </div>
+          <div class="xi-result hidden" id="xi-result">
+            <div class="xi-rating-card">
+              <span class="xi-rating-label">FRANCHISE RATING</span>
+              <strong class="xi-rating-value" id="xi-rating-value">--</strong>
+              <span class="xi-rank" id="xi-rank"></span>
+            </div>
+            <div class="xi-breakdown" id="xi-breakdown"></div>
+            <div class="xi-grid xi-locked-list" id="xi-locked-list"></div>
+          </div>
+          <p class="xi-waiting" id="xi-waiting" role="status"></p>
+          <div class="xi-ranking hidden" id="xi-ranking">
+            <span class="section-kicker">FRANCHISE RATINGS</span>
+            <div class="xi-ranking-body" id="xi-ranking-body"></div>
+          </div>
+          <div class="xi-host hidden" id="xi-host">
+            <button class="button button-secondary" id="xi-autolock-button" type="button">Auto-pick and lock the remaining franchises</button>
+          </div>
+        </section>
+
         <section class="live-board panel" aria-labelledby="live-board-title">
           <div class="live-board-heading">
             <div>
               <span class="section-kicker">LIVE ROOM TRACKER</span>
               <h2 id="live-board-title">Players & franchise squads</h2>
-              <p>Follow the upcoming lots, live results, and each team’s lineup score.</p>
+              <p>Follow the upcoming lots, live results, and each franchise’s squad.</p>
             </div>
             <span class="season-pill" id="live-board-summary">0 / 38 PLAYERS CALLED</span>
           </div>
@@ -314,7 +344,7 @@
             </div>
           </div>
           <div class="live-team-panel hidden" id="live-team-panel">
-            <p class="score-explainer">Lineup score measures filled role slots out of 11. It reflects squad balance, not player performance.</p>
+            <p class="score-explainer">Each franchise builds a squad of 15 players in any mix of roles. Player ratings stay hidden; franchise ratings appear after every Playing XI is locked.</p>
             <div class="live-team-grid" id="live-team-grid"></div>
           </div>
         </section>
@@ -322,7 +352,7 @@
       <div class="toast hidden" id="toast" role="status"></div>
     </main>
     <footer><span>TATA IPL AUCTION 2026</span><span>PLAY FAIR. BID BOLD.</span></footer>
-    <script src="/assets/app.js?v=21" defer></script>
+    <script src="/assets/app.js?v=22" defer></script>
     <script src="/assets/franchise-strip.js?v=1" defer></script>
     <script src="/assets/audio.js?v=1" defer></script>
   </body>

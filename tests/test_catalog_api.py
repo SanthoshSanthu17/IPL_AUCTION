@@ -16,7 +16,7 @@ class CatalogApiTests(unittest.TestCase):
             all(player["matches"] > 0 for player in players)
         )
         self.assertNotIn("official_status", players[0])
-        self.assertEqual(result["auction"]["target_squad_size"], 11)
+        self.assertEqual(result["auction"]["target_squad_size"], 15)
         self.assertEqual(len(result["teams"]), 10)
         self.assertTrue(all(team["logo_url"] for team in result["teams"]))
         ravi_bishnoi = next(player for player in players if player["name"] == "Ravi Bishnoi")

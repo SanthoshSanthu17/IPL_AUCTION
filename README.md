@@ -31,10 +31,12 @@ leading, another franchise must bid before they can raise again.
 ## Project structure
 
 - `web/`: responsive auction overview, player/result tabs, franchise directory, and live room.
-- `data/auction_info.json`: season, lineup targets, and live-session details.
+- `data/auction_info.json`: season, squad size, and live-session details.
 - `data/teams.json`: franchise catalogue and official team logo references.
 - `data/auction_settings.json`: default live-game purse in crore.
 - `data/players.csv`: the player pool, base prices, IPL stats, and verified portrait URLs.
+- `data/player_profiles.csv`: batting style and bowling type per player (draft).
+- `data/player_ratings.csv`: hidden player ratings used for franchise ratings (draft).
 - `data/ipl_stats_aliases.csv`: verified name mappings for the IPL stats source.
 - `ipl_auction/players/`: player model, CSV loading, validation, and the Cricsheet stats importer.
 - `ipl_auction/teams/`: team data and purse state.
@@ -79,12 +81,29 @@ winning price and franchise. No historical auction outcome is preloaded. The
 live-game purse in `data/auction_settings.json` defaults to ₹125 crore per
 franchise.
 
-Each franchise tracks an 11-slot lineup: one wicketkeeper, two openers, one
-anchor, one middle-order batter, one finisher, two all-rounders, one fast
-bowler, one spinner, and one other bowler. When a franchise bids, the game
-automatically assigns the player to its first available compatible role in
-lineup priority order. The lineup score is the percentage of these slots
-filled; it measures roster coverage, not player performance.
+Every franchise builds a squad of 15 players in any mix of roles (all openers,
+all bowlers, anything goes). There are no role slots during the auction, but
+three rules keep it realistic: a squad can hold at most 6 overseas players, a
+bid is blocked if it would leave too little money to fill the remaining spots
+at the ₹0.30 crore minimum base price, and a franchise with 15 players cannot
+bid. The auction ends when every franchise that joined has 15 players, the pool
+is exhausted, or nobody who still needs players can buy anyone else.
+
+After the auction each franchise picks its Playing XI (exactly 11 players, at
+most 4 overseas) and clicks Lock; the other players are the bench. The host can
+auto-pick and lock for franchises that have not locked. Only those two rules are
+enforced; an unbalanced XI (for example three openers or no wicketkeeper) is
+allowed but lowers the franchise rating.
+
+Each player has a hidden rating in `data/player_ratings.csv`, which is never
+shown during the auction. The franchise rating is the average rating of the XI,
+plus 10% of the bench average, minus balance penalties (constants at the top of
+`ipl_auction/teams/lineup.py`). A franchise sees its own rating and breakdown
+right after locking; the ranking of all franchises appears once every franchise
+has locked. `data/player_profiles.csv` tags each player with a batting style
+(opener, anchor, middle, finisher) and bowling type (pace, spin) for those
+checks. Both files are drafts for the owner to review: regenerate the ratings
+with `python -m ipl_auction.players.build_ratings`, or edit the CSV by hand.
 
 ## Hosting for friends in different locations
 

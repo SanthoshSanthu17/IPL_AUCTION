@@ -18,6 +18,7 @@ let toastTimeout;
 let announcementTimeout;
 let activeTab = "overview";
 let activeLiveTab = "all";
+let xiSelection = new Set();
 let catalogData = { player_records: [], teams: [], auction: {} };
 
 const money = (value) => value == null ? "—" : `₹${Number(value).toFixed(2)} Cr`;
@@ -476,7 +477,7 @@ function renderState(state) {
     ? "LIVE AUCTION"
     : state.status === "paused" ? "AUCTION PAUSED"
       : state.status === "lobby" ? isAdmin ? "HOST & PARTICIPANT" : "AUCTION LOBBY"
-        : "AUCTION ROOM";
+        : state.status === "complete" ? "PLAYING XI" : "AUCTION ROOM";
   document.querySelector("#auction-heading").textContent = state.status === "complete"
     ? "Auction complete"
     : state.status === "paused" ? "The auction is paused"
@@ -496,16 +497,12 @@ function renderState(state) {
     ? "Choose a franchise before starting the auction."
     : "Call the first player and open bidding.";
   renderAdminControls(state, isAdmin);
-  renderRoleProgress(
-    document.querySelector("#own-role-progress"),
-    ownTeam?.role_progress || [],
-  );
 
-  renderPlayerRoleFit(state);
   renderPlayer(state);
   renderTeams(state);
   renderSales(state);
   renderLiveBoard(state);
+  renderXi(state);
   updateTimer(state);
   if (previousResultCount != null && state.results.length > previousResultCount) {
     showHammerAnnouncement(state.results[state.results.length - 1]);
@@ -547,8 +544,8 @@ function showHammerAnnouncement(result) {
     if (team) logo.append(makeTeamLogo(team));
     document.querySelector("#hammer-team").textContent = result.team_name || team?.name || "Franchise";
     document.querySelector("#hammer-price").textContent = auctionMoney(result.price_crore);
-    document.querySelector("#hammer-role").textContent = result.squad_role_label
-      ? `LINEUP SLOT · ${result.squad_role_label.toUpperCase()}`
+    document.querySelector("#hammer-role").textContent = result.squad_count
+      ? `SQUAD ${result.squad_count}/${result.squad_capacity || 15}`
       : "";
   }
   announcement.classList.remove("hammer-visible", "hammer-run");
@@ -561,50 +558,6 @@ function showHammerAnnouncement(result) {
     announcement.classList.remove("hammer-visible", "hammer-run");
     announcement.setAttribute("aria-hidden", "true");
   }, 3200);
-}
-
-function renderRoleProgress(container, progress) {
-  container.replaceChildren();
-  progress.forEach((role) => {
-    const chip = document.createElement("span");
-    chip.className = `role-chip${role.complete ? " complete" : ""}`;
-    chip.textContent = `${role.label} ${role.count}/${role.capacity}`;
-    container.append(chip);
-  });
-}
-
-function renderPlayerRoleFit(state) {
-  const panel = document.querySelector("#player-role-fit");
-  const label = document.querySelector("#role-fit-label");
-  const options = document.querySelector("#role-fit-options");
-  const player = state.current_player;
-  const activeLot = state.status === "live" ||
-    (state.status === "paused" && state.paused_from_status === "live");
-  if (!activeLot || !player) {
-    panel.classList.add("hidden");
-    return;
-  }
-
-  const ownTeam = state.teams.find((team) => team.team_id === currentSession?.teamId);
-  const roles = ownTeam
-    ? ownTeam.available_roles || []
-    : player.eligible_squad_roles || [];
-  label.textContent = ownTeam ? "OPEN SLOTS FOR YOUR FRANCHISE" : "THIS PLAYER CAN FILL";
-  options.replaceChildren();
-  if (!roles.length) {
-    const empty = document.createElement("span");
-    empty.className = "role-fit-empty";
-    empty.textContent = "No open lineup slot fits this player.";
-    options.append(empty);
-  } else {
-    roles.forEach((role) => {
-      const chip = document.createElement("span");
-      chip.className = "role-fit-chip";
-      chip.textContent = role.label;
-      options.append(chip);
-    });
-  }
-  panel.classList.remove("hidden");
 }
 
 function renderPlayer(state) {
@@ -643,14 +596,20 @@ function renderPlayer(state) {
   document.querySelector("#player-role").textContent = player
     ? `${player.role || "Player"}${player.nationality ? `  /  ${player.nationality}` : ""}`
     : state.status === "complete" ? "AUCTION CLOSED" : lobbyContent.role;
+  const completeTitles = {
+    squads_full: "Every franchise has a full squad",
+    no_buyers: "No franchise can sign anyone else",
+  };
   document.querySelector("#current-player-name").textContent = player
     ? player.name
-    : state.status === "complete" ? "Every lot has been called" : lobbyContent.title;
+    : state.status === "complete"
+      ? completeTitles[state.complete_reason] || "Every lot has been called"
+      : lobbyContent.title;
   if (player?.elite) document.querySelector("#current-player-name").append(makeEliteBadge());
   document.querySelector("#player-country").textContent = player
     ? `${player.nationality || "Nationality not set"} • ${player.role || "Role not set"}`
     : state.status === "complete"
-      ? "Review the sold and unsold players below."
+      ? "Pick and lock your Playing XI below, then review the sold and unsold players."
       : lobbyContent.description;
   const portrait = document.querySelector("#current-player-portrait");
   portrait.replaceChildren();
@@ -681,13 +640,16 @@ function renderPlayer(state) {
   });
 
   const highest = document.querySelector("#highest-bid");
-  const availableRoles = ownTeam?.available_roles || [];
+  const blockReason = ownTeam?.bid_block_reason || null;
+  const squadLine = ownTeam
+    ? `Squad ${ownTeam.squad_size}/${state.squad_size} · Purse left ${money(ownTeam.purse_remaining_crore)}`
+    : "";
   if (state.highest_team_name) {
     highest.replaceChildren();
     highest.append(document.createTextNode(state.highest_team_name));
     const sub = document.createElement("span");
-    sub.textContent = state.highest_squad_role_label
-      ? `Leading · lineup role: ${state.highest_squad_role_label}`
+    sub.textContent = ownTeam && state.highest_team_id === ownTeam.team_id
+      ? `You are leading · ${squadLine}`
       : "Current highest bidder";
     highest.append(sub);
   } else {
@@ -697,10 +659,10 @@ function renderPlayer(state) {
       ? "Waiting for the host to resume."
       : state.status === "live" && !currentSession?.teamId
         ? "Join a franchise to place bids."
-        : state.status === "live" && ownTeam && !availableRoles.length
-          ? "No open lineup role fits this player."
+        : state.status === "live" && ownTeam && blockReason
+          ? blockReason
           : state.status === "live"
-            ? "Be first to bid. A compatible lineup role is assigned automatically."
+            ? `Be first to bid. ${squadLine}`
             : state.status === "between"
               ? "The next player starts automatically after the hammer announcement."
               : state.status === "complete"
@@ -718,7 +680,7 @@ function renderPlayer(state) {
     state.status === "live" &&
     currentSession?.teamId &&
     !alreadyLeading &&
-    availableRoles.length
+    !blockReason
   );
   bidButton.disabled = !canBid;
   bidButton.innerHTML = currentSession?.teamId && state.highest_team_id === currentSession.teamId
@@ -732,8 +694,8 @@ function renderPlayer(state) {
         ? "Bidding has ended. The next player starts automatically."
         : state.status === "paused"
           ? "Bidding is paused by the host."
-          : state.status === "live" && ownTeam && !availableRoles.length
-            ? "Your franchise has no open lineup role that fits this player."
+          : state.status === "live" && ownTeam && blockReason
+            ? blockReason
             : state.status === "live" && !currentSession?.teamId
               ? "Join the room with a franchise to bid."
               : "Bidding is not open.";
@@ -751,7 +713,7 @@ function renderTeams(state) {
     name.textContent = team.name;
     const owner = document.createElement("small");
     owner.className = "team-owner";
-    owner.textContent = `${team.captain || "Available"} · ${team.players_bought}/11 · ${team.lineup_score}%`;
+    owner.textContent = `${team.captain || "Available"} · ${team.players_bought}/${team.squad_capacity || 15} players`;
     name.append(owner);
     const purse = document.createElement("strong");
     purse.className = "team-purse";
@@ -877,21 +839,26 @@ function renderLiveTeams(state) {
     const name = document.createElement("strong");
     name.textContent = team.name;
     const shortName = document.createElement("small");
-    shortName.textContent = `${team.players_bought}/11 players · ${auctionMoney(team.purse_remaining_crore)} left`;
+    shortName.textContent = `${team.players_bought}/${team.squad_capacity || 15} players · ${auctionMoney(team.purse_remaining_crore)} left`;
     identity.append(name, shortName);
     heading.append(identity);
     const score = document.createElement("span");
     score.className = "score-badge";
-    score.textContent = `${team.lineup_score}%`;
+    score.textContent = `${team.players_bought}/${team.squad_capacity || 15}`;
     heading.append(score);
     summary.append(heading);
 
     const chips = document.createElement("div");
     chips.className = "role-chips";
-    (team.role_progress || []).forEach((role) => {
+    const squadChips = [
+      [`Squad ${team.players_bought}/${team.squad_capacity || 15}`, team.players_bought >= (team.squad_capacity || 15)],
+      [`Overseas ${team.overseas_count}/${state.max_overseas_squad || 6}`, false],
+    ];
+    if (team.xi_locked) squadChips.push(["Playing XI locked", true]);
+    squadChips.forEach(([text, done]) => {
       const chip = document.createElement("span");
-      chip.className = `role-chip${role.complete ? " complete" : ""}`;
-      chip.textContent = `${role.label} ${role.count}/${role.capacity}`;
+      chip.className = `role-chip${done ? " complete" : ""}`;
+      chip.textContent = text;
       chips.append(chip);
     });
     summary.append(chips);
@@ -918,7 +885,9 @@ function renderLiveTeams(state) {
         playerName.textContent = player.name;
         if (player.elite) playerName.append(makeEliteBadge());
         const role = document.createElement("small");
-        role.textContent = player.squad_role_label || "Role pending";
+        role.textContent = [player.role, player.style_label, player.overseas ? "Overseas" : ""]
+          .filter(Boolean)
+          .join(" · ");
         details.append(playerName, role);
         const price = document.createElement("strong");
         price.className = "price-cell";
@@ -962,6 +931,169 @@ function renderSales(state) {
     row.append(details, price);
     list.append(row);
   });
+}
+
+function xiRequired(state, ownTeam) {
+  return ownTeam ? state.xi.required[ownTeam.team_id] ?? state.xi_size : 0;
+}
+
+function xiOverseasCount(ownTeam) {
+  return ownTeam.roster.filter((player) => xiSelection.has(player.player_id) && player.overseas).length;
+}
+
+function toggleXiPlayer(state, ownTeam, player) {
+  if (xiSelection.has(player.player_id)) {
+    xiSelection.delete(player.player_id);
+  } else {
+    if (xiSelection.size >= xiRequired(state, ownTeam)) {
+      return showToast(`Your Playing XI already has ${xiSelection.size} players. Remove one first.`);
+    }
+    if (player.overseas && xiOverseasCount(ownTeam) >= state.max_overseas_xi) {
+      return showToast(`A Playing XI can have at most ${state.max_overseas_xi} overseas players.`);
+    }
+    xiSelection.add(player.player_id);
+  }
+  renderXi(state);
+}
+
+function makeXiCard(state, ownTeam, player, selected, interactive) {
+  const card = document.createElement(interactive ? "button" : "div");
+  card.className = `xi-card${selected ? " selected" : ""}`;
+  if (interactive) {
+    card.type = "button";
+    card.setAttribute("aria-pressed", String(selected));
+    card.addEventListener("click", () => toggleXiPlayer(state, ownTeam, player));
+  }
+  card.append(makePlayerPhoto(player, "player-photo-roster"));
+  const details = document.createElement("span");
+  details.className = "xi-card-details";
+  const name = document.createElement("strong");
+  name.textContent = player.name;
+  if (player.elite) name.append(makeEliteBadge());
+  const meta = document.createElement("small");
+  meta.textContent = [player.role, player.style_label].filter(Boolean).join(" · ");
+  const origin = document.createElement("small");
+  origin.textContent = `${player.nationality || ""}${player.overseas ? " · Overseas" : ""}`;
+  details.append(name, meta, origin);
+  card.append(details);
+  return card;
+}
+
+function renderXi(state) {
+  const panel = document.querySelector("#xi-panel");
+  const open = state.status === "complete" && Boolean(state.xi && state.xi.open);
+  panel.classList.toggle("hidden", !open);
+  if (!open) return;
+
+  const isAdmin = Boolean(currentSession?.adminToken);
+  const ownTeam = state.teams.find((team) => team.team_id === currentSession?.teamId);
+  const mine = state.my_xi || null;
+  const xi = state.xi;
+  const required = xiRequired(state, ownTeam);
+  const pickArea = document.querySelector("#xi-pick");
+  const resultArea = document.querySelector("#xi-result");
+  const counter = document.querySelector("#xi-counter");
+
+  if (ownTeam) {
+    const rosterIds = new Set(ownTeam.roster.map((player) => player.player_id));
+    xiSelection = new Set([...xiSelection].filter((id) => rosterIds.has(id)));
+  }
+
+  pickArea.classList.toggle("hidden", !ownTeam || Boolean(mine));
+  resultArea.classList.toggle("hidden", !mine);
+
+  document.querySelector("#xi-title").textContent = mine
+    ? "Your Playing XI is locked"
+    : ownTeam ? "Select your Playing XI" : "Franchises are picking their Playing XI";
+  document.querySelector("#xi-subtitle").textContent = mine
+    ? "Your lineup cannot be changed now."
+    : ownTeam
+      ? `Choose exactly ${required} of your ${ownTeam.roster.length} players. At most ${state.max_overseas_xi} can be overseas. Once you lock, it cannot be changed.`
+      : "Each franchise owner is choosing and locking a Playing XI.";
+
+  if (ownTeam && !mine) {
+    counter.textContent = `${xiSelection.size} / ${required} SELECTED · OVERSEAS ${xiOverseasCount(ownTeam)}/${state.max_overseas_xi}`;
+    const grid = document.querySelector("#xi-grid");
+    grid.replaceChildren();
+    if (!ownTeam.roster.length) {
+      const empty = document.createElement("p");
+      empty.className = "empty-state";
+      empty.textContent = "Your franchise did not buy any players.";
+      grid.append(empty);
+    }
+    ownTeam.roster.forEach((player) => {
+      grid.append(makeXiCard(state, ownTeam, player, xiSelection.has(player.player_id), true));
+    });
+    const lockButton = document.querySelector("#xi-lock-button");
+    lockButton.disabled = xiSelection.size !== required;
+    document.querySelector("#xi-status").textContent = xiSelection.size === required
+      ? "Ready to lock."
+      : `Pick ${required - xiSelection.size} more.`;
+  } else if (mine) {
+    counter.textContent = "LOCKED";
+    document.querySelector("#xi-rating-value").textContent = Number(mine.rating).toFixed(1);
+    document.querySelector("#xi-rank").textContent = mine.rank
+      ? `Rank ${mine.rank} of ${xi.rankings.length}`
+      : "Rank shown when every franchise has locked";
+    const lines = document.querySelector("#xi-breakdown");
+    lines.replaceChildren();
+    mine.breakdown.forEach((line) => {
+      const row = document.createElement("div");
+      row.className = `xi-breakdown-row${line.points < 0 ? " negative" : ""}`;
+      const label = document.createElement("span");
+      label.textContent = line.label;
+      const points = document.createElement("strong");
+      points.textContent = line.points > 0 && line.label !== "Playing XI strength"
+        ? `+${line.points.toFixed(1)}`
+        : line.points.toFixed(1);
+      row.append(label, points);
+      lines.append(row);
+    });
+    const lockedList = document.querySelector("#xi-locked-list");
+    lockedList.replaceChildren();
+    const chosen = new Set(mine.player_ids);
+    ownTeam.roster.filter((player) => chosen.has(player.player_id)).forEach((player) => {
+      lockedList.append(makeXiCard(state, ownTeam, player, true, false));
+    });
+  } else {
+    counter.textContent = `${xi.locked_team_ids.length} / ${xi.locked_team_ids.length + xi.waiting_team_ids.length} LOCKED`;
+  }
+
+  const waiting = document.querySelector("#xi-waiting");
+  const nameOf = (teamId) => state.teams.find((team) => team.team_id === teamId)?.name || teamId;
+  waiting.classList.toggle("all-locked", xi.all_locked);
+  waiting.textContent = xi.all_locked
+    ? "All Playing XIs are locked. Ready for the toss of Match 1."
+    : `Waiting for ${xi.waiting_team_ids.length} franchise${xi.waiting_team_ids.length === 1 ? "" : "s"} to lock: ${xi.waiting_team_ids.map(nameOf).join(", ")}`;
+
+  const ranking = document.querySelector("#xi-ranking");
+  ranking.classList.toggle("hidden", !xi.all_locked);
+  if (xi.all_locked) {
+    const body = document.querySelector("#xi-ranking-body");
+    body.replaceChildren();
+    xi.rankings.forEach((entry) => {
+      const row = document.createElement("div");
+      row.className = `xi-ranking-row${entry.team_id === currentSession?.teamId ? " own" : ""}`;
+      const rank = document.createElement("span");
+      rank.className = "xi-rank-number";
+      rank.textContent = entry.rank;
+      const team = state.teams.find((item) => item.team_id === entry.team_id);
+      const logo = document.createElement("span");
+      if (team) logo.append(makeTeamLogo(team));
+      const name = document.createElement("strong");
+      name.textContent = entry.name;
+      const rating = document.createElement("span");
+      rating.className = "xi-rank-rating";
+      rating.textContent = Number(entry.rating).toFixed(1);
+      row.append(rank, logo, name, rating);
+      body.append(row);
+    });
+  }
+
+  document.querySelector("#xi-host").classList.toggle(
+    "hidden",
+    !isAdmin || xi.all_locked || !xi.waiting_team_ids.length,
+  );
 }
 
 function updateTimer(state) {
@@ -1036,6 +1168,10 @@ document.querySelector("#pause-button").addEventListener("click", () => {
   sendAction(currentState.status === "paused" ? "resume" : "pause");
 });
 document.querySelector("#bid-button").addEventListener("click", () => sendAction("bid"));
+document.querySelector("#xi-lock-button").addEventListener("click", () => {
+  sendAction("lock_xi", { player_ids: [...xiSelection] });
+});
+document.querySelector("#xi-autolock-button").addEventListener("click", () => sendAction("auto_lock"));
 document.querySelector("#join-room-code").addEventListener("input", (event) => {
   event.target.value = event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
 });

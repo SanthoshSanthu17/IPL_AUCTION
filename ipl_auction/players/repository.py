@@ -8,6 +8,11 @@ from ipl_auction.players.models import Player
 
 PLAYER_FILE = DATA_DIR / "players.csv"
 ELITE_FILE = DATA_DIR / "elite_players.csv"
+PROFILE_FILE = DATA_DIR / "player_profiles.csv"
+RATING_FILE = DATA_DIR / "player_ratings.csv"
+DEFAULT_RATING = 50.0
+BAT_ROLES = {"opener", "anchor", "middle", "finisher"}
+BOWL_TYPES = {"pace", "spin"}
 REQUIRED_COLUMNS = {
     "player_id",
     "name",
@@ -52,6 +57,59 @@ def load_elite_ids(known_ids: set[str]) -> set[str]:
             raise ValueError("Elite player data is missing the player_id column.")
         elite_ids = {(row["player_id"] or "").strip() for row in reader}
     return elite_ids & known_ids
+
+
+def _data_lines(path) -> list[str]:
+    """CSV lines of a file, skipping # comment lines (used for review notes)."""
+    with path.open("r", newline="", encoding="utf-8-sig") as file:
+        return [line for line in file if not line.lstrip().startswith("#")]
+
+
+def load_player_profiles() -> dict[str, tuple[str | None, str | None]]:
+    """Return {player_id: (bat_role, bowl_type)} (the file is optional)."""
+    if not PROFILE_FILE.exists():
+        return {}
+    profiles: dict[str, tuple[str | None, str | None]] = {}
+    reader = csv.DictReader(_data_lines(PROFILE_FILE))
+    if "player_id" not in (reader.fieldnames or []):
+        raise ValueError("Player profile data is missing the player_id column.")
+    for row in reader:
+        player_id = (row.get("player_id") or "").strip()
+        if not player_id:
+            continue
+        bat_role = (row.get("bat_role") or "").strip().casefold() or None
+        bowl_type = (row.get("bowl_type") or "").strip().casefold() or None
+        if bat_role not in BAT_ROLES:
+            bat_role = None
+        if bowl_type not in BOWL_TYPES:
+            bowl_type = None
+        profiles[player_id] = (bat_role, bowl_type)
+    return profiles
+
+
+def load_player_ratings() -> dict[str, float]:
+    """Return {player_id: rating} from data/player_ratings.csv (optional file).
+
+    Lines starting with # are ignored so the file can carry a review note.
+    """
+    if not RATING_FILE.exists():
+        return {}
+    ratings: dict[str, float] = {}
+    reader = csv.DictReader(_data_lines(RATING_FILE))
+    fields = reader.fieldnames or []
+    if "player_id" not in fields or "rating" not in fields:
+        raise ValueError("Player rating data needs player_id and rating columns.")
+    for row in reader:
+        player_id = (row.get("player_id") or "").strip()
+        if not player_id:
+            continue
+        try:
+            value = float(row.get("rating") or "")
+        except ValueError:
+            continue
+        if math.isfinite(value):
+            ratings[player_id] = max(0.0, min(100.0, value))
+    return ratings
 
 
 def load_players() -> list[Player]:
@@ -108,6 +166,15 @@ def load_players() -> list[Player]:
                 )
             )
         elite_ids = load_elite_ids(seen_ids)
+        profiles = load_player_profiles()
+        ratings = load_player_ratings()
         return [
-            replace(player, elite=player.player_id in elite_ids) for player in players
+            replace(
+                player,
+                elite=player.player_id in elite_ids,
+                bat_role=profiles.get(player.player_id, (None, None))[0],
+                bowl_type=profiles.get(player.player_id, (None, None))[1],
+                rating=ratings.get(player.player_id, DEFAULT_RATING),
+            )
+            for player in players
         ]

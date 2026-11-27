@@ -12,11 +12,19 @@ from fastapi import WebSocket, WebSocketDisconnect
 from ipl_auction.players.models import Player
 from ipl_auction.services.auction_service import record_sale, record_unsold
 from ipl_auction.teams.lineup import (
-    available_roles,
-    eligible_roles,
-    lineup_score,
-    role_label,
-    role_progress,
+    MAX_OVERSEAS_SQUAD,
+    MAX_OVERSEAS_XI,
+    SQUAD_SIZE,
+    XI_SIZE,
+    auto_pick_xi,
+    bid_block_reason,
+    can_still_buy,
+    franchise_rating,
+    overseas_count,
+    squad_is_full,
+    style_label,
+    validate_xi,
+    xi_capacity,
 )
 from ipl_auction.teams.models import TeamState
 
@@ -46,7 +54,9 @@ class AuctionRoom:
     current_index: int = -1
     current_bid_crore: float | None = None
     highest_team_id: str | None = None
-    highest_squad_role: str | None = None
+    complete_reason: str | None = None
+    xi_locks: dict[str, list[str]] = field(default_factory=dict)
+    franchise_ratings: dict[str, dict[str, Any]] = field(default_factory=dict)
     deadline_at: float | None = None
     advance_deadline_at: float | None = None
     paused_from_status: str | None = None
@@ -174,6 +184,11 @@ class RoomManager:
                     self._resume(room)
                 elif action == "bid":
                     self._place_bid(room, connection)
+                elif action == "lock_xi":
+                    self._lock_xi(room, connection, message)
+                elif action == "auto_lock":
+                    self._require_admin(connection)
+                    self._auto_lock(room)
                 else:
                     raise ValueError("Unknown auction action.")
         except ValueError as error:
@@ -184,13 +199,17 @@ class RoomManager:
 
     async def broadcast(self, room: AuctionRoom) -> None:
         async with room.lock:
-            connections = list(room.connections)
             state = self.snapshot(room)
+            recipients = [
+                (websocket, self._private_view(room, connection))
+                for websocket, connection in room.connections.items()
+            ]
 
         disconnected = []
-        for websocket in connections:
+        for websocket, private in recipients:
+            payload = {**state, "my_xi": private} if private else state
             try:
-                await websocket.send_json({"type": "state", "state": state})
+                await websocket.send_json({"type": "state", "state": payload})
             except (WebSocketDisconnect, RuntimeError):
                 disconnected.append(websocket)
 
@@ -228,7 +247,6 @@ class RoomManager:
                     "sale_price_crore": result["price_crore"] if result else None,
                     "sold_team_id": result["team_id"] if result else None,
                     "sold_team_name": result["team_name"] if result else None,
-                    "squad_role": result.get("squad_role") if result else None,
                 }
             )
 
@@ -237,18 +255,18 @@ class RoomManager:
             roster = []
             for bought_player in team_state.players:
                 sale = results_by_player.get(bought_player.player_id, {})
-                assigned_role = team_state.player_roles.get(bought_player.player_id)
                 roster.append(
                     {
                         "player_id": bought_player.player_id,
                         "name": bought_player.name,
                         "role": bought_player.role,
+                        "nationality": bought_player.nationality,
+                        "overseas": bought_player.is_overseas,
+                        "style_label": style_label(bought_player),
                         "image_url": bought_player.image_url,
                         "elite": bought_player.elite,
                         "base_price_crore": bought_player.base_price_crore,
                         "price_crore": sale.get("price_crore"),
-                        "squad_role": assigned_role,
-                        "squad_role_label": role_label(assigned_role),
                     }
                 )
             teams.append(
@@ -259,11 +277,13 @@ class RoomManager:
                     "logo_url": team_state.team.logo_url,
                     "purse_remaining_crore": team_state.purse_remaining_crore,
                     "players_bought": len(team_state.players),
+                    "squad_size": len(team_state.players),
+                    "squad_capacity": SQUAD_SIZE,
+                    "overseas_count": overseas_count(team_state),
                     "captain": room.team_members.get(team_id),
-                    "lineup_score": lineup_score(team_state),
-                    "role_progress": role_progress(team_state),
-                    "available_roles": (
-                        available_roles(player, team_state) if player else []
+                    "xi_locked": team_id in room.xi_locks,
+                    "bid_block_reason": self._bid_block_reason(
+                        room, team_id, team_state
                     ),
                     "roster": roster,
                 }
@@ -284,8 +304,12 @@ class RoomManager:
             "current_player": self._player_data(player) if player else None,
             "current_bid_crore": room.current_bid_crore,
             "highest_team_id": room.highest_team_id,
-            "highest_squad_role": room.highest_squad_role,
-            "highest_squad_role_label": role_label(room.highest_squad_role),
+            "squad_size": SQUAD_SIZE,
+            "xi_size": XI_SIZE,
+            "max_overseas_squad": MAX_OVERSEAS_SQUAD,
+            "max_overseas_xi": MAX_OVERSEAS_XI,
+            "complete_reason": room.complete_reason,
+            "xi": self._xi_summary(room),
             "highest_team_name": (
                 room.team_names.get(room.highest_team_id)
                 if room.highest_team_id
@@ -310,11 +334,12 @@ class RoomManager:
         room.advance_task = None
         room.paused_from_status = None
         room.paused_remaining_seconds = None
-        if next_index >= len(room.players):
+        reason = self._completion_reason(room, next_index)
+        if reason:
             room.status = "complete"
+            room.complete_reason = reason
             room.current_bid_crore = None
             room.highest_team_id = None
-            room.highest_squad_role = None
             room.deadline_at = None
             room.timer_task = None
             return
@@ -323,7 +348,6 @@ class RoomManager:
         room.status = "live"
         room.current_bid_crore = None
         room.highest_team_id = None
-        room.highest_squad_role = None
         deadline_at = time.time() + room.timer_seconds
         room.deadline_at = deadline_at
         room.timer_task = asyncio.create_task(
@@ -424,16 +448,12 @@ class RoomManager:
             else round(room.current_bid_crore + room.bid_increment_crore, 2)
         )
         team_state = room.team_states[connection.team_id]
-        if next_bid > team_state.purse_remaining_crore:
-            raise ValueError("Your franchise does not have enough purse for this bid.")
-        available_squad_roles = available_roles(player, team_state)
-        if not available_squad_roles:
-            raise ValueError("Your franchise has no open lineup role that fits this player.")
-        squad_role = available_squad_roles[0]["key"]
+        reason = bid_block_reason(player, team_state, next_bid)
+        if reason:
+            raise ValueError(reason)
 
         room.current_bid_crore = next_bid
         room.highest_team_id = connection.team_id
-        room.highest_squad_role = squad_role
         deadline_at = time.time() + room.timer_seconds
         room.deadline_at = deadline_at
         if room.timer_task:
@@ -458,13 +478,17 @@ class RoomManager:
             if room.highest_team_id is None or room.current_bid_crore is None:
                 result = record_unsold(player)
             else:
-                result = record_sale(
-                    player,
-                    room.team_states[room.highest_team_id],
-                    room.current_bid_crore,
-                    room.highest_squad_role,
-                )
+                try:
+                    result = record_sale(
+                        player,
+                        room.team_states[room.highest_team_id],
+                        room.current_bid_crore,
+                    )
+                except ValueError:
+                    # Safety net: never leave the room stuck on a bad sale.
+                    result = record_unsold(player)
 
+            sold_team = room.team_states.get(result.team_id) if result.team_id else None
             room.results.append(
                 {
                     "player_id": player.player_id,
@@ -473,8 +497,8 @@ class RoomManager:
                     "team_id": result.team_id,
                     "team_name": room.team_names.get(result.team_id),
                     "price_crore": result.sold_price_crore,
-                    "squad_role": room.highest_squad_role,
-                    "squad_role_label": role_label(room.highest_squad_role),
+                    "squad_count": len(sold_team.players) if sold_team else None,
+                    "squad_capacity": SQUAD_SIZE,
                 }
             )
             room.status = "between"
@@ -506,12 +530,141 @@ class RoomManager:
         await self.broadcast(room)
 
     @staticmethod
+    def _active_team_states(room: AuctionRoom) -> list[TeamState]:
+        """Franchises that a person has joined; empty franchises never bid."""
+        return [
+            room.team_states[team_id]
+            for team_id in room.team_members
+            if team_id in room.team_states
+        ]
+
+    def _completion_reason(self, room: AuctionRoom, next_index: int) -> str | None:
+        active = self._active_team_states(room)
+        if active and all(squad_is_full(state) for state in active):
+            return "squads_full"
+        if next_index >= len(room.players):
+            return "pool_exhausted"
+        remaining = room.players[next_index:]
+        if not any(can_still_buy(state, remaining) for state in active):
+            return "no_buyers"
+        return None
+
+    @staticmethod
+    def _next_bid(room: AuctionRoom, player: Player) -> float:
+        return (
+            player.base_price_crore
+            if room.current_bid_crore is None
+            else round(room.current_bid_crore + room.bid_increment_crore, 2)
+        )
+
+    def _bid_block_reason(
+        self, room: AuctionRoom, team_id: str, team_state: TeamState
+    ) -> str | None:
+        player = room.current_player
+        active_lot = room.status == "live" or (
+            room.status == "paused" and room.paused_from_status == "live"
+        )
+        if player is None or not active_lot:
+            return None
+        return bid_block_reason(player, team_state, self._next_bid(room, player))
+
+    def _store_xi_lock(
+        self, room: AuctionRoom, team_id: str, chosen: list[Player]
+    ) -> None:
+        team_state = room.team_states[team_id]
+        chosen_ids = {player.player_id for player in chosen}
+        bench = [
+            player for player in team_state.players if player.player_id not in chosen_ids
+        ]
+        room.xi_locks[team_id] = [player.player_id for player in chosen]
+        room.franchise_ratings[team_id] = franchise_rating(chosen, bench)
+
+    def _lock_xi(
+        self, room: AuctionRoom, connection: Connection, message: dict[str, Any]
+    ) -> None:
+        if room.status != "complete":
+            raise ValueError("The Playing XI opens when the auction is complete.")
+        team_id = connection.team_id
+        if team_id is None:
+            raise ValueError("Join a franchise to lock a Playing XI.")
+        if team_id in room.xi_locks:
+            raise ValueError("Your Playing XI is already locked.")
+        chosen = validate_xi(room.team_states[team_id], message.get("player_ids"))
+        self._store_xi_lock(room, team_id, chosen)
+
+    def _auto_lock(self, room: AuctionRoom) -> None:
+        if room.status != "complete":
+            raise ValueError("The Playing XI opens when the auction is complete.")
+        for team_id in room.team_members:
+            if team_id in room.xi_locks or team_id not in room.team_states:
+                continue
+            self._store_xi_lock(
+                room, team_id, auto_pick_xi(room.team_states[team_id])
+            )
+
+    def _xi_summary(self, room: AuctionRoom) -> dict[str, Any]:
+        active_ids = [t for t in room.team_members if t in room.team_states]
+        locked = [t for t in active_ids if t in room.xi_locks]
+        waiting = [t for t in active_ids if t not in room.xi_locks]
+        all_locked = room.status == "complete" and bool(active_ids) and not waiting
+        rankings = None
+        if all_locked:
+            ordered = sorted(
+                active_ids, key=lambda t: -room.franchise_ratings[t]["rating"]
+            )
+            rankings = [
+                {
+                    "rank": index + 1,
+                    "team_id": team_id,
+                    "name": room.team_states[team_id].team.name,
+                    "short_name": room.team_states[team_id].team.short_name,
+                    "logo_url": room.team_states[team_id].team.logo_url,
+                    "rating": room.franchise_ratings[team_id]["rating"],
+                }
+                for index, team_id in enumerate(ordered)
+            ]
+        return {
+            "open": room.status == "complete",
+            "required": {
+                team_id: xi_capacity(room.team_states[team_id]) for team_id in active_ids
+            },
+            "locked_team_ids": locked,
+            "waiting_team_ids": waiting,
+            "all_locked": all_locked,
+            "rankings": rankings,
+        }
+
+    def _private_view(
+        self, room: AuctionRoom, connection: Connection
+    ) -> dict[str, Any] | None:
+        """What only this franchise may see: its own rating and breakdown."""
+        team_id = connection.team_id
+        if team_id is None or team_id not in room.xi_locks:
+            return None
+        rating = room.franchise_ratings[team_id]
+        rank = None
+        summary = self._xi_summary(room)
+        if summary["rankings"]:
+            rank = next(
+                (row["rank"] for row in summary["rankings"] if row["team_id"] == team_id),
+                None,
+            )
+        return {
+            "locked": True,
+            "player_ids": list(room.xi_locks[team_id]),
+            "rating": rating["rating"],
+            "breakdown": rating["breakdown"],
+            "rank": rank,
+        }
+
+    @staticmethod
     def _player_data(player: Player) -> dict[str, Any]:
         return {
             "player_id": player.player_id,
             "name": player.name,
             "role": player.role,
-            "eligible_squad_roles": eligible_roles(player),
+            "style_label": style_label(player),
+            "overseas": player.is_overseas,
             "nationality": player.nationality,
             "image_url": player.image_url,
             "elite": player.elite,
