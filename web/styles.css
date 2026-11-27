@@ -319,6 +319,7 @@ input::placeholder { color: #9aa5b2; }
 .player-cell { color: var(--ink) !important; font-weight: 700; }
 .player-cell-identity { display: flex; align-items: center; gap: 9px; min-width: 150px; }
 .player-cell-name { color: var(--ink); font-size: 10px; font-weight: 700; }
+.set-chip { display: inline-block; flex-shrink: 0; margin-left: 6px; padding: 2px 6px; border-radius: 10px; color: var(--blue); background: var(--blue-soft); font: 800 7px "Manrope", sans-serif; letter-spacing: .12em; vertical-align: middle; }
 .elite-badge { display: inline-block; flex-shrink: 0; margin-left: 6px; padding: 2px 6px; border-radius: 10px; color: #3a2600; background: linear-gradient(135deg, #f7d154, #e0962b); font: 800 7px "Manrope", sans-serif; letter-spacing: .12em; vertical-align: middle; }
 .player-photo { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; overflow: hidden; border: 1px solid #e6ebf1; background: linear-gradient(145deg, #f8fafc, #e8eef5); }
 .player-photo img { width: 100%; height: 100%; object-fit: contain; object-position: center bottom; }
@@ -435,6 +436,11 @@ input::placeholder { color: #9aa5b2; }
 .live-pill.paused { color: #98612b; border-color: #f0dbbb; background: #fff8ed; }
 .live-pill.complete { color: var(--blue); border-color: #d3e1f1; }
 .player-count { color: var(--subtle); }
+.set-progress { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.set-step { padding: 3px 8px; border: 1px solid var(--line); border-radius: 20px; color: var(--subtle); font-size: 8px; font-weight: 800; letter-spacing: .1em; }
+.set-step.current { color: var(--blue); border-color: var(--blue); background: var(--blue-soft); }
+.set-step.done { color: var(--green); border-color: #cde9db; background: #f1faf5; }
+.set-chip-large { margin: 0 0 8px; padding: 3px 9px; font-size: 8px; }
 .player-info { min-height: 268px; padding-top: 25px; }
 .player-identity { display: flex; min-height: 216px; align-items: center; gap: 20px; }
 .player-details { min-width: 0; }
@@ -527,6 +533,11 @@ input::placeholder { color: #9aa5b2; }
 .hammer-price { color: var(--green); font: 800 16px "Manrope", sans-serif; }
 .hammer-award small { color: var(--muted); font-size: 7px; font-weight: 800; letter-spacing: .08em; }
 .hammer-unsold-note { grid-column: 3; grid-row: 1 / span 2; margin: 0; padding-left: 12px; border-left: 1px solid var(--line); color: var(--muted); font-size: 9px; line-height: 1.4; }
+.set-banner { position: absolute; inset: 0; z-index: 5; display: grid; align-content: center; justify-items: center; gap: 8px; padding: 20px; background: rgba(255,255,255,.96); text-align: center; visibility: hidden; opacity: 0; pointer-events: none; transition: opacity .25s ease; }
+.set-banner.visible { visibility: visible; opacity: 1; }
+.set-banner-kicker { color: var(--gold); font-size: 8px; font-weight: 800; letter-spacing: .2em; }
+.set-banner-title { color: var(--blue-deep); font: 800 clamp(26px, 5vw, 40px)/1.1 "Manrope", sans-serif; letter-spacing: -.04em; }
+.set-banner-note { color: var(--muted); font-size: 11px; }
 .hammer-announcement.hammer-run .hammer-card { animation: hammer-card-in .45s cubic-bezier(.2,.8,.2,1) both; }
 .hammer-announcement.hammer-run .hammer-gavel { animation: gavel-strike .85s .12s cubic-bezier(.2,.8,.2,1) both; }
 .hammer-announcement.hammer-run .hammer-overline { animation: hammer-stamp .35s .58s cubic-bezier(.2,.8,.2,1) both; }

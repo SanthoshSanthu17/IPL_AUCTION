@@ -10,6 +10,7 @@ from typing import Any
 from fastapi import WebSocket, WebSocketDisconnect
 
 from ipl_auction.players.models import Player
+from ipl_auction.players.sets import SET_BREAK_SECONDS, AuctionPlan
 from ipl_auction.services.auction_service import record_sale, record_unsold
 from ipl_auction.teams.lineup import (
     MAX_OVERSEAS_SQUAD,
@@ -57,6 +58,11 @@ class AuctionRoom:
     complete_reason: str | None = None
     xi_locks: dict[str, list[str]] = field(default_factory=dict)
     franchise_ratings: dict[str, dict[str, Any]] = field(default_factory=dict)
+    # Player sets: player_id -> set number for the players taking part, and the
+    # player_ids that sat out of each set (kept so a later feature can rotate them).
+    player_sets: dict[str, int] = field(default_factory=dict)
+    sat_out: dict[int, list[str]] = field(default_factory=dict)
+    sets_fallback: bool = False
     deadline_at: float | None = None
     advance_deadline_at: float | None = None
     paused_from_status: str | None = None
@@ -83,7 +89,10 @@ class RoomManager:
         team_states: dict[str, TeamState],
         timer_seconds: int,
         bid_increment_crore: float,
+        plan: AuctionPlan | None = None,
     ) -> tuple[AuctionRoom, str]:
+        if plan is not None:
+            players = plan.players
         if not players:
             raise ValueError("The player pool is empty.")
         if timer_seconds not in (5, 10):
@@ -102,6 +111,9 @@ class RoomManager:
                 players=players,
                 team_states=team_states,
                 team_names={key: state.team.name for key, state in team_states.items()},
+                player_sets=dict(plan.player_sets) if plan else {},
+                sat_out={n: list(ids) for n, ids in plan.sat_out.items()} if plan else {},
+                sets_fallback=plan.used_fallback if plan else False,
             )
             self.rooms[code] = room
             return room, admin_token
@@ -243,6 +255,7 @@ class RoomManager:
             players.append(
                 {
                     **self._player_data(auction_player),
+                    "set_number": room.player_sets.get(auction_player.player_id),
                     "live_status": live_status,
                     "sale_price_crore": result["price_crore"] if result else None,
                     "sold_team_id": result["team_id"] if result else None,
@@ -289,6 +302,7 @@ class RoomManager:
                 }
             )
 
+        set_break = self._set_break_info(room)
         return {
             "room_code": room.code,
             "status": room.status,
@@ -301,7 +315,16 @@ class RoomManager:
                 player.has_ipl_stats for player in room.players
             ),
             "players": players,
-            "current_player": self._player_data(player) if player else None,
+            "current_player": (
+                {
+                    **self._player_data(player),
+                    "set_number": room.player_sets.get(player.player_id),
+                }
+                if player
+                else None
+            ),
+            "sets": self._set_summary(room),
+            "set_break": set_break,
             "current_bid_crore": room.current_bid_crore,
             "highest_team_id": room.highest_team_id,
             "squad_size": SQUAD_SIZE,
@@ -317,7 +340,8 @@ class RoomManager:
             ),
             "deadline_at": room.deadline_at,
             "advance_deadline_at": room.advance_deadline_at,
-            "advance_delay_seconds": AUTO_ADVANCE_DELAY_SECONDS,
+            "advance_delay_seconds": AUTO_ADVANCE_DELAY_SECONDS
+            + (SET_BREAK_SECONDS if set_break else 0),
             "paused_from_status": room.paused_from_status,
             "paused_remaining_seconds": room.paused_remaining_seconds,
             "teams": teams,
@@ -504,7 +528,9 @@ class RoomManager:
             room.status = "between"
             room.deadline_at = None
             room.timer_task = None
-            advance_deadline_at = time.time() + AUTO_ADVANCE_DELAY_SECONDS
+            advance_deadline_at = (
+                time.time() + AUTO_ADVANCE_DELAY_SECONDS + self._set_break_seconds(room)
+            )
             room.advance_deadline_at = advance_deadline_at
             room.advance_task = asyncio.create_task(
                 self._advance_after_settlement(room, advance_deadline_at)
@@ -528,6 +554,73 @@ class RoomManager:
             self._open_next_player(room)
 
         await self.broadcast(room)
+
+    def _next_set_number(self, room: AuctionRoom) -> int | None:
+        """The set number of the next lot when it starts a new set, else None."""
+        player = room.current_player
+        next_index = room.current_index + 1
+        if not room.player_sets or player is None or next_index >= len(room.players):
+            return None
+        next_set = room.player_sets.get(room.players[next_index].player_id)
+        if next_set is None or next_set == room.player_sets.get(player.player_id):
+            return None
+        if self._completion_reason(room, next_index):
+            return None  # the auction ends instead of starting the next set
+        return next_set
+
+    def _set_break_seconds(self, room: AuctionRoom) -> float:
+        return SET_BREAK_SECONDS if self._next_set_number(room) is not None else 0.0
+
+    def _set_break_info(self, room: AuctionRoom) -> dict[str, Any] | None:
+        """The "Set N begins" banner details while waiting for the next set."""
+        waiting = room.status == "between" or (
+            room.status == "paused" and room.paused_from_status == "between"
+        )
+        number = self._next_set_number(room) if waiting else None
+        if number is None:
+            return None
+        return {
+            "next_set": number,
+            "label": f"SET {number}",
+            "players": sum(
+                1 for item in room.players if room.player_sets.get(item.player_id) == number
+            ),
+            "seconds": SET_BREAK_SECONDS,
+        }
+
+    @staticmethod
+    def _set_summary(room: AuctionRoom) -> dict[str, Any]:
+        """Set progress for the live room (counts only, no player names or ratings)."""
+        if not room.player_sets:
+            return {"enabled": False, "current": None, "rows": [], "used_fallback": False}
+        totals: dict[int, int] = {}
+        called: dict[int, int] = {}
+        for item in room.players:
+            number = room.player_sets.get(item.player_id)
+            totals[number] = totals.get(number, 0) + 1
+        for result in room.results:
+            number = room.player_sets.get(result["player_id"])
+            called[number] = called.get(number, 0) + 1
+        player = room.current_player
+        return {
+            "enabled": True,
+            "current": (
+                room.player_sets.get(player.player_id)
+                if player and room.status != "complete"
+                else None
+            ),
+            "rows": [
+                {
+                    "number": number,
+                    "label": f"SET {number}",
+                    "total": totals[number],
+                    "called": called.get(number, 0),
+                    "sat_out": len(room.sat_out.get(number, [])),
+                }
+                for number in sorted(totals)
+            ],
+            "used_fallback": room.sets_fallback,
+        }
 
     @staticmethod
     def _active_team_states(room: AuctionRoom) -> list[TeamState]:

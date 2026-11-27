@@ -132,6 +132,7 @@
           </section>
 
           <p class="catalog-note" id="catalog-note">Loading the official auction catalogue…</p>
+          <p class="catalog-note" id="sets-note">Players are auctioned in 4 sets by rating: Set 1 (all ELITE players) first, then Set 2 to Set 4. Each set has 50 players and 40 of them take part in every auction.</p>
 
           <section class="franchise-preview">
             <div class="section-title compact-title">
@@ -219,10 +220,12 @@
                 <span class="live-pill" id="auction-status"><i></i> WAITING FOR HOST</span>
                 <span class="player-count" id="player-counter">PLAYER -- / --</span>
               </div>
+              <div class="set-progress hidden" id="set-progress" aria-label="Set progress"></div>
               <div class="player-info">
                 <div class="player-identity">
                   <div class="player-photo-slot hidden" id="current-player-portrait" aria-hidden="true"></div>
                   <div class="player-details">
+                    <span class="set-chip set-chip-large hidden" id="current-set-chip"></span>
                     <div class="player-role" id="player-role">AUCTION LOBBY</div>
                     <h3 id="current-player-name">Waiting for the host</h3>
                     <p class="player-country" id="player-country">The host will start the auction; then the first player appears here.</p>
@@ -240,6 +243,11 @@
               </div>
               <div class="timer-track"><div id="timer-bar"></div></div>
               <div class="timer-label"><span>HAMMER CLOCK</span><strong id="timer-value">—</strong></div>
+              <div class="set-banner" id="set-banner" role="status" aria-live="polite" aria-hidden="true">
+                <span class="set-banner-kicker">NEXT UP</span>
+                <strong class="set-banner-title" id="set-banner-title"></strong>
+                <span class="set-banner-note" id="set-banner-note"></span>
+              </div>
             </section>
             <section class="hammer-announcement" id="hammer-announcement" role="status" aria-live="polite" aria-atomic="true" aria-hidden="true">
               <div class="hammer-card">

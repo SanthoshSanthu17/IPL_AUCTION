@@ -16,6 +16,7 @@ let currentState;
 let currentSession;
 let toastTimeout;
 let announcementTimeout;
+let setBannerTimeout;
 let activeTab = "overview";
 let activeLiveTab = "all";
 let xiSelection = new Set();
@@ -132,6 +133,13 @@ function makeEliteBadge() {
   return badge;
 }
 
+function makeSetChip(number) {
+  const chip = document.createElement("span");
+  chip.className = "set-chip";
+  chip.textContent = `SET ${number}`;
+  return chip;
+}
+
 function makePlayerCell(player) {
   const cell = document.createElement("td");
   cell.className = "player-cell";
@@ -143,6 +151,7 @@ function makePlayerCell(player) {
   name.textContent = player.name;
   identity.append(name);
   if (player.elite) identity.append(makeEliteBadge());
+  if (player.set_number) identity.append(makeSetChip(player.set_number));
   cell.append(identity);
   return cell;
 }
@@ -349,6 +358,11 @@ async function loadCatalog() {
     document.querySelector("#purse-value").textContent = auctionMoney(auction.total_purse_per_team_crore);
     document.querySelector("#catalog-note").textContent =
       `${catalogData.players} players are available for this live auction pool. Sold and unsold lists update inside each room as players are called.`;
+    if (catalogData.sets) {
+      const { count, size, taking_part: takingPart } = catalogData.sets;
+      document.querySelector("#sets-note").textContent =
+        `Players are auctioned in ${count} sets by rating: Set 1 (all ELITE players) first, then Set 2 to Set ${count}. Each set has ${size} players and ${takingPart} of them take part in every auction.`;
+    }
 
     renderFranchises(catalogData.teams);
     renderPlayerTable(activeTab === "overview" || activeTab === "teams" ? "all-players" : activeTab);
@@ -499,6 +513,8 @@ function renderState(state) {
   renderAdminControls(state, isAdmin);
 
   renderPlayer(state);
+  renderSetInfo(state);
+  updateSetBanner(state);
   renderTeams(state);
   renderSales(state);
   renderLiveBoard(state);
@@ -699,6 +715,55 @@ function renderPlayer(state) {
             : state.status === "live" && !currentSession?.teamId
               ? "Join the room with a franchise to bid."
               : "Bidding is not open.";
+}
+
+function renderSetInfo(state) {
+  const sets = state.sets;
+  const player = state.status === "complete" ? null : state.current_player;
+  const chip = document.querySelector("#current-set-chip");
+  chip.textContent = player?.set_number ? `SET ${player.set_number}` : "";
+  chip.classList.toggle("hidden", !player?.set_number);
+
+  const progress = document.querySelector("#set-progress");
+  progress.replaceChildren();
+  progress.classList.toggle("hidden", !sets?.enabled);
+  if (!sets?.enabled) return;
+  progress.title = sets.used_fallback
+    ? "The role minimums could not be met, so the closest sit-out draw was used."
+    : "";
+  sets.rows.forEach((row) => {
+    const step = document.createElement("span");
+    const done = row.called >= row.total;
+    step.className = `set-step${row.number === sets.current ? " current" : ""}${done ? " done" : ""}`;
+    step.textContent = `${row.label} · ${row.called}/${row.total}`;
+    progress.append(step);
+  });
+}
+
+function updateSetBanner(state) {
+  const banner = document.querySelector("#set-banner");
+  const info = state.set_break;
+  clearTimeout(setBannerTimeout);
+  let show = false;
+  if (info && (state.status === "between" || state.status === "paused")) {
+    const remaining = state.status === "paused"
+      ? state.paused_remaining_seconds
+      : Math.max(0, (state.advance_deadline_at * 1000 - Date.now()) / 1000);
+    if (remaining != null && remaining <= info.seconds) {
+      show = true;
+    } else if (remaining != null && state.status === "between") {
+      // Wait for the hammer announcement to finish, then show the banner.
+      setBannerTimeout = setTimeout(() => {
+        if (currentState === state) updateSetBanner(state);
+      }, (remaining - info.seconds) * 1000 + 30);
+    }
+  }
+  if (show) {
+    document.querySelector("#set-banner-title").textContent = `${info.label} BEGINS`;
+    document.querySelector("#set-banner-note").textContent = `${info.players} players go under the hammer`;
+  }
+  banner.classList.toggle("visible", show);
+  banner.setAttribute("aria-hidden", String(!show));
 }
 
 function renderTeams(state) {

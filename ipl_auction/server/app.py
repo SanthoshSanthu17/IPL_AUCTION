@@ -9,6 +9,13 @@ from pydantic import BaseModel, Field
 
 from ipl_auction.paths import DATA_DIR
 from ipl_auction.players.repository import load_players
+from ipl_auction.players.sets import (
+    PLAYERS_PER_SET_IN_AUCTION,
+    SET_COUNT,
+    SET_SIZE,
+    build_auction_plan,
+    set_numbers,
+)
 from ipl_auction.server.rooms import RoomManager
 from ipl_auction.teams.models import TeamState
 from ipl_auction.teams.repository import load_default_purse, load_teams
@@ -41,10 +48,16 @@ async def catalog() -> dict:
     except (OSError, ValueError) as error:
         raise HTTPException(status_code=500, detail=str(error)) from error
 
+    pool_sets = set_numbers(players)
     return {
         "players": len(players),
         "players_with_ipl_stats": sum(player.has_ipl_stats for player in players),
         "auction": auction_info,
+        "sets": {
+            "count": SET_COUNT,
+            "size": SET_SIZE,
+            "taking_part": PLAYERS_PER_SET_IN_AUCTION,
+        },
         "player_records": [
             {
                 "player_id": player.player_id,
@@ -54,6 +67,7 @@ async def catalog() -> dict:
                 "base_price_crore": player.base_price_crore,
                 "image_url": player.image_url,
                 "elite": player.elite,
+                "set_number": pool_sets.get(player.player_id),
                 "matches": player.matches,
                 "runs": player.runs,
                 "wickets": player.wickets,
@@ -85,11 +99,13 @@ async def create_room(request: CreateRoomRequest) -> dict:
             team.team_id: TeamState(team=team, purse_remaining_crore=purse)
             for team in teams
         }
+        plan = build_auction_plan(players)
         room, admin_token = await room_manager.create_room(
-            players=players,
+            players=plan.players,
             team_states=team_states,
             timer_seconds=request.timer_seconds,
             bid_increment_crore=round(request.bid_increment_crore, 2),
+            plan=plan,
         )
     except (OSError, ValueError) as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
