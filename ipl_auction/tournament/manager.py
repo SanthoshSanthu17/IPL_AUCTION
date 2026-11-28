@@ -7,7 +7,11 @@ from typing import Any
 
 from fastapi import WebSocket
 
-from ipl_auction.match.constants import DEFAULT_MATCH_SPEED, MATCH_SPEED_DELAYS
+from ipl_auction.match.constants import (
+    DEFAULT_MATCH_SPEED,
+    DEFAULT_TOURNAMENT_OVERS,
+    TOURNAMENT_OVERS_OPTIONS,
+)
 from ipl_auction.match.engine import T20MatchSimulator
 from ipl_auction.match.models import BallEvent, MatchResult
 from ipl_auction.players.models import Player
@@ -27,7 +31,6 @@ from ipl_auction.tournament.constants import (
     STAGE_LEAGUE_R2,
     STAGE_QUALIFIER_1,
     STAGE_QUALIFIER_2,
-    STAGE_SEMI_FINAL,
     STATUS_COMPLETED,
     STATUS_LIVE,
     STATUS_UPCOMING,
@@ -183,7 +186,7 @@ class LiveMatchSession:
     speed: str = DEFAULT_MATCH_SPEED
     participants: set[WebSocket] = field(default_factory=set)
     spectators: set[WebSocket] = field(default_factory=set)
-    task: asyncio.Task[None] | None = None
+    task: asyncio.Task[None] | None = None  # auto-play loop (computer plays both sides)
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     ball_history: list[dict[str, Any]] = field(default_factory=list)
 
@@ -200,6 +203,7 @@ class TournamentState:
     league_team_ids: list[str]
     format_type: str  # "knockout_2", "knockout_3", "league_playoffs"
     base_seed: int
+    total_overs: int = DEFAULT_TOURNAMENT_OVERS
     round2_generated: bool = False
     playoffs_initialized: bool = False
     champion_team_id: str | None = None
@@ -293,7 +297,7 @@ class TournamentState:
                 bracket_updated = True
 
         elif self.format_type == "knockout_3":
-            if fixture.stage == STAGE_SEMI_FINAL:
+            if fixture.stage == STAGE_ELIMINATOR:
                 final_fx = next((f for f in self.fixtures if f.stage == STAGE_FINAL), None)
                 if final_fx and final_fx.team_b_id is None:
                     final_fx.team_b_id = result.winner_team_id
@@ -507,8 +511,11 @@ def build_tournament(
     xi_locks: dict[str, list[str]],
     franchise_ratings: dict[str, dict[str, Any]],
     seed: int = 42,
+    total_overs: int = DEFAULT_TOURNAMENT_OVERS,
 ) -> TournamentState:
     """Create initial tournament rankings, standings, and Round 1 / bracket fixtures."""
+    if total_overs not in TOURNAMENT_OVERS_OPTIONS:
+        raise ValueError("Tournament overs must be 5, 10 or 20.")
     count = len(participating_team_ids)
     if count < MIN_TOURNAMENT_TEAMS or count > MAX_TOURNAMENT_TEAMS:
         raise ValueError(
@@ -544,6 +551,7 @@ def build_tournament(
             league_team_ids=[],
             format_type="knockout_2",
             base_seed=seed,
+            total_overs=total_overs,
         )
 
     if count == 3:
@@ -551,7 +559,7 @@ def build_tournament(
             Fixture(
                 match_id=f"{room_code}-M1",
                 fixture_number=1,
-                stage=STAGE_SEMI_FINAL,
+                stage=STAGE_ELIMINATOR,
                 is_playoff=True,
                 team_a_id=ranked_ids[1],
                 team_b_id=ranked_ids[2],
@@ -565,7 +573,7 @@ def build_tournament(
                 team_a_id=ranked_ids[0],
                 team_b_id=None,
                 seed=seed + 202,
-                tbd_b_label="Semi-Final Winner",
+                tbd_b_label="Eliminator Winner",
             ),
         ]
         return TournamentState(
@@ -576,6 +584,7 @@ def build_tournament(
             league_team_ids=[],
             format_type="knockout_3",
             base_seed=seed,
+            total_overs=total_overs,
         )
 
     # 4 to 10 teams: Top 2 skip league stage to Qualifier 1; Ranks 3..N enter Swiss league
@@ -674,4 +683,5 @@ def build_tournament(
         league_team_ids=league_ids,
         format_type="league_playoffs",
         base_seed=seed,
+        total_overs=total_overs,
     )

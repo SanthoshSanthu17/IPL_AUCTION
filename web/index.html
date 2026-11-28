@@ -233,6 +233,14 @@
                   <option value="10">10 seconds</option>
                 </select>
               </div>
+              <div class="admin-control-field">
+                <label for="room-overs-setting">MATCH OVERS</label>
+                <select id="room-overs-setting">
+                  <option value="5">5 overs</option>
+                  <option value="10">10 overs</option>
+                  <option value="20">20 overs</option>
+                </select>
+              </div>
               <button class="button button-secondary" id="apply-timer-button" type="button">Apply</button>
               <button class="button button-pause" id="pause-button" type="button">Pause auction</button>
             </div>
@@ -429,6 +437,8 @@
               </div>
               <div class="live-match-controls">
                 <div class="speed-controls hidden" id="match-speed-controls">
+                  <button type="button" class="button button-secondary speed-btn" data-speed="manual">Manual</button>
+                  <button type="button" class="button button-secondary" id="simulate-ball-btn">Auto ball</button>
                   <button type="button" class="button button-secondary speed-btn" data-speed="normal">Normal</button>
                   <button type="button" class="button button-secondary speed-btn" data-speed="fast">Fast</button>
                   <button type="button" class="button button-primary speed-btn" data-speed="skip">Skip to Result</button>
@@ -470,6 +480,48 @@
             </div>
 
             <p class="live-commentary-box" id="sb-commentary">Waiting for first delivery…</p>
+
+            <div class="match-phase-banner" id="match-phase-banner">
+              <strong id="match-phase-title">Toss</strong>
+              <span id="match-phase-detail"></span>
+            </div>
+            <div class="match-meta-row">
+              <span id="match-format-note"></span>
+              <span id="match-momentum-note"></span>
+              <span id="match-bowler-style-note"></span>
+            </div>
+
+            <div class="match-controls hidden" id="match-toss-controls">
+              <div class="match-choice-row" id="match-toss-call-row">
+                <button type="button" class="button button-primary" data-toss-call="heads">Call Heads</button>
+                <button type="button" class="button button-primary" data-toss-call="tails">Call Tails</button>
+              </div>
+              <div class="match-choice-row" id="match-toss-decision-row">
+                <button type="button" class="button button-primary" data-toss-decision="bat">Bat first</button>
+                <button type="button" class="button button-primary" data-toss-decision="bowl">Bowl first</button>
+              </div>
+            </div>
+
+            <div class="match-controls hidden" id="match-picker">
+              <span class="panel-kicker" id="match-picker-title">PICK</span>
+              <div class="match-picker-grid" id="match-picker-grid"></div>
+              <button type="button" class="button button-primary hidden" id="match-picker-confirm">Confirm openers</button>
+            </div>
+
+            <div class="match-controls hidden" id="match-delivery-controls">
+              <span class="panel-kicker">CHOOSE A DELIVERY · MAX 2 OF EACH PER OVER</span>
+              <div class="match-delivery-grid" id="match-delivery-grid"></div>
+            </div>
+
+            <div class="match-controls hidden" id="match-shot-controls">
+              <span class="panel-kicker" id="match-shot-title">CHOOSE YOUR SHOT</span>
+              <div class="match-shot-grid" id="match-shot-grid"></div>
+            </div>
+
+            <div class="match-feed-wrap">
+              <span class="panel-kicker">COMMENTARY</span>
+              <ol class="match-feed" id="match-commentary-feed"></ol>
+            </div>
           </section>
 
           <section class="panel tournament-fixtures-panel">
@@ -478,6 +530,14 @@
                 <span class="section-kicker">MATCH CENTRE</span>
                 <h2>Tournament Fixtures</h2>
                 <p>Your franchise's matches are highlighted. Multiple matches can run at the same time.</p>
+              </div>
+              <div class="admin-control-field hidden" id="tournament-overs-field">
+                <label for="tournament-overs-setting">MATCH OVERS (HOST)</label>
+                <select id="tournament-overs-setting">
+                  <option value="5">5 overs</option>
+                  <option value="10">10 overs</option>
+                  <option value="20">20 overs</option>
+                </select>
               </div>
             </div>
             <div class="fixtures-grid" id="tournament-fixtures-grid"></div>

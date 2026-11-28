@@ -559,8 +559,11 @@ function connect(session) {
       renderLiveMatch(activeMatchState, activeMatchRole);
       return;
     }
-    if (message.type === "ball_update" || message.type === "score_update" || message.type === "innings_completed" || message.type === "super_over_started") {
+    if (message.type === "match_update" || message.type === "ball_update" || message.type === "score_update" || message.type === "innings_completed" || message.type === "super_over_started") {
       if (message.match && message.match.match_id === activeMatchId) {
+        if (message.role) activeMatchRole = message.role;
+        if (activeMatchState && message.match.revision != null && activeMatchState.revision != null
+          && message.match.revision < activeMatchState.revision) return;
         activeMatchState = message.match;
         renderLiveMatch(activeMatchState, activeMatchRole);
       }
@@ -568,6 +571,7 @@ function connect(session) {
     }
     if (message.type === "match_completed") {
       if (message.match && message.match.match_id === activeMatchId) {
+        if (message.role) activeMatchRole = message.role;
         activeMatchState = message.match;
         renderLiveMatch(activeMatchState, activeMatchRole);
       }
@@ -659,6 +663,7 @@ function renderState(state) {
     ? "Choose a franchise before starting the auction."
     : "Call the first player and open bidding.";
   renderAdminControls(state, isAdmin);
+  renderOversSetting(state, isAdmin);
 
   renderPlayer(state);
   renderSetInfo(state);
@@ -752,7 +757,9 @@ function renderTournament(state) {
     const meta = document.createElement("p");
     meta.className = "fixture-meta";
     if (fx.status === "live" && fx.live_score) {
-      meta.textContent = `${fx.live_score.batting_team_name}: ${fx.live_score.runs}/${fx.live_score.wickets} (${fx.live_score.overs} ov)`;
+      meta.textContent = fx.live_score.batting_team_name
+        ? `${fx.live_score.batting_team_name}: ${fx.live_score.runs}/${fx.live_score.wickets} (${fx.live_score.overs} ov)`
+        : "Toss in progress";
     } else if (fx.status === "completed" && fx.result_summary) {
       meta.textContent = fx.result_summary;
     } else if (!fx.is_ready) {
@@ -854,6 +861,33 @@ function renderTournament(state) {
   });
 }
 
+let openerPick = [];
+let openerPickKey = "";
+
+function matchAction(type, payload = {}) {
+  if (!activeMatchId) return;
+  sendAction(type, { match_id: activeMatchId, ...payload });
+}
+
+function clearChildren(...selectors) {
+  selectors.forEach((selector) => document.querySelector(selector).replaceChildren());
+}
+
+function pickerButton(label, detail, options = {}) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = `button button-secondary picker-btn${options.selected ? " selected" : ""}`;
+  btn.disabled = Boolean(options.disabled);
+  const name = document.createElement("strong");
+  name.textContent = label;
+  const small = document.createElement("small");
+  small.textContent = detail || "";
+  btn.append(name, small);
+  if (options.title) btn.title = options.title;
+  if (options.onClick) btn.addEventListener("click", options.onClick);
+  return btn;
+}
+
 function renderLiveMatch(match, role) {
   const panel = document.querySelector("#live-match-panel");
   if (!match) {
@@ -863,51 +897,61 @@ function renderLiveMatch(match, role) {
   panel.classList.remove("hidden");
 
   const isParticipant = role === "participant";
+  const myTeamId = currentSession?.teamId;
+  const manual = !match.speed || match.speed === "manual";
+  const myTurn = isParticipant && !match.completed && manual && match.actor_team_id === myTeamId;
   const pill = document.querySelector("#live-match-role-pill");
   pill.innerHTML = `<i></i> ${isParticipant ? "YOUR MATCH · LIVE" : "SPECTATOR MODE · READ ONLY"}`;
 
   const speedControls = document.querySelector("#match-speed-controls");
-  speedControls.classList.toggle("hidden", !isParticipant || match.completed);
+  speedControls.classList.toggle("hidden", !(isParticipant || currentSession?.adminToken) || match.completed);
   speedControls.querySelectorAll(".speed-btn").forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.speed === match.speed);
+    btn.classList.toggle("active", btn.dataset.speed === (match.speed || "manual"));
+    btn.classList.toggle("hidden", !isParticipant);
   });
+  const autoBall = document.querySelector("#simulate-ball-btn");
+  autoBall.disabled = !manual;
 
-  document.querySelector("#live-match-title").textContent =
-    `${match.batting_team_name} vs ${match.bowling_team_name}`;
-  document.querySelector("#live-match-innings-label").textContent = match.is_super_over
-    ? `Super Over #${match.super_over_round} · Innings ${match.innings_number}`
-    : `Innings ${match.innings_number} of 2`;
+  const hasInnings = Boolean(match.batting_team_name);
+  document.querySelector("#live-match-title").textContent = hasInnings
+    ? `${match.batting_team_name} vs ${match.bowling_team_name}`
+    : `${match.team_a_name} vs ${match.team_b_name}`;
+  document.querySelector("#live-match-innings-label").textContent = !hasInnings
+    ? "Toss"
+    : match.is_super_over
+      ? `Super Over #${match.super_over_round} · Innings ${match.innings_number}`
+      : `Innings ${match.innings_number} of 2`;
 
-  document.querySelector("#sb-batting-team").textContent = match.batting_team_name;
+  document.querySelector("#sb-batting-team").textContent = match.batting_team_name || "Toss";
   document.querySelector("#sb-score").textContent = `${match.runs}/${match.wickets}`;
-  document.querySelector("#sb-overs").textContent = `(${match.overs} ov)`;
+  document.querySelector("#sb-overs").textContent = `(${match.overs} / ${match.total_overs} ov)`;
 
   const chaseBox = document.querySelector("#sb-chase-info");
   if (match.completed && match.result) {
     chaseBox.textContent = match.result.margin;
   } else if (match.target != null) {
     chaseBox.textContent = `Target: ${match.target} · Need ${match.runs_needed} off ${match.balls_remaining} balls (RRR: ${match.required_run_rate ?? "—"})`;
-  } else {
+  } else if (hasInnings) {
     chaseBox.textContent = "1st Innings · Setting the target";
+  } else {
+    chaseBox.textContent = "Toss to be decided";
   }
 
   document.querySelector("#sb-striker").textContent = match.striker ? `${match.striker.player_name}*` : "—";
   document.querySelector("#sb-striker-stats").textContent = match.striker
     ? `${match.striker.runs} (${match.striker.balls}) · 4s: ${match.striker.fours} · 6s: ${match.striker.sixes}`
     : "—";
-
   document.querySelector("#sb-non-striker").textContent = match.non_striker ? match.non_striker.player_name : "—";
   document.querySelector("#sb-non-striker-stats").textContent = match.non_striker
     ? `${match.non_striker.runs} (${match.non_striker.balls})`
     : "—";
-
   document.querySelector("#sb-bowler").textContent = match.bowler ? match.bowler.player_name : "—";
   document.querySelector("#sb-bowler-stats").textContent = match.bowler
     ? `${match.bowler.overs}-${match.bowler.maidens}-${match.bowler.runs_conceded}-${match.bowler.wickets} (Econ ${match.bowler.economy})`
     : "—";
 
-  const recentBox = document.querySelector("#sb-recent-balls");
-  recentBox.replaceChildren(...(match.last_six_balls || []).map((ev) => {
+  const chipSource = match.this_over && match.this_over.length ? match.this_over : match.last_six_balls || [];
+  document.querySelector("#sb-recent-balls").replaceChildren(...chipSource.map((ev) => {
     const chip = document.createElement("span");
     chip.className = "ball-chip";
     if (ev.is_wicket) {
@@ -915,16 +959,144 @@ function renderLiveMatch(match, role) {
       chip.textContent = "W";
     } else if (ev.extra_type === "wide") {
       chip.textContent = "Wd";
-    } else if (ev.extra_type === "noball") {
-      chip.textContent = `${ev.runs_off_bat}nb`;
     } else {
       if (ev.runs_off_bat === 4 || ev.runs_off_bat === 6) chip.classList.add("boundary");
       chip.textContent = String(ev.runs_off_bat);
     }
     return chip;
   }));
-
   document.querySelector("#sb-commentary").textContent = match.last_commentary || "";
+
+  const feed = document.querySelector("#match-commentary-feed");
+  feed.replaceChildren(...(match.commentary_feed || []).map((entry) => {
+    const li = document.createElement("li");
+    li.className = entry.kind === "info" ? "feed-info" : "feed-ball";
+    li.textContent = entry.text;
+    return li;
+  }));
+
+  document.querySelector("#match-format-note").textContent =
+    `${match.total_overs} overs · Powerplay 1–${match.powerplay_end} · Death ${match.death_start}–${match.total_overs} · Max ${match.max_bowler_overs} per bowler`;
+  document.querySelector("#match-momentum-note").textContent = hasInnings
+    ? `Momentum ${Math.round((match.momentum || 0) * 100)}%`
+    : "";
+  document.querySelector("#match-bowler-style-note").textContent = match.bowler_style
+    ? `Bowler: ${match.bowler_style}${match.bowler_is_elite ? " · ELITE" : ""}${match.striker_is_elite ? " · Striker ELITE" : ""}`
+    : "";
+
+  renderMatchControls(match, myTurn, isParticipant, manual);
+}
+
+function renderMatchControls(match, myTurn, isParticipant, manual) {
+  const phase = match.phase;
+  const title = document.querySelector("#match-phase-title");
+  const detail = document.querySelector("#match-phase-detail");
+  const toss = match.toss || {};
+  if (match.completed) {
+    title.textContent = "Match completed";
+    detail.textContent = match.result ? match.result.margin : "";
+  } else if (!manual) {
+    title.textContent = "Auto-play running";
+    detail.textContent = "The computer is making both sides' choices. Switch to Manual to take control.";
+  } else if (myTurn) {
+    title.textContent = "Your turn";
+    detail.textContent = match.awaiting || "";
+  } else {
+    title.textContent = isParticipant ? "Waiting for the other side" : "Watching live";
+    detail.textContent = match.awaiting || "";
+  }
+  if (toss.winner_name && !match.completed) {
+    detail.textContent += ` · Toss: ${toss.winner_name}${toss.decision ? ` chose to ${toss.decision}` : ""}`;
+  }
+
+  const show = (selector, visible) => document.querySelector(selector).classList.toggle("hidden", !visible);
+  const tossControls = document.querySelector("#match-toss-controls");
+  const showToss = myTurn && (phase === "toss_call" || phase === "toss_decision");
+  show("#match-toss-controls", showToss);
+  show("#match-toss-call-row", showToss && phase === "toss_call");
+  show("#match-toss-decision-row", showToss && phase === "toss_decision");
+  tossControls.dataset.phase = phase;
+
+  const showPicker = myTurn && ["select_openers", "select_bowler", "select_next_batter"].includes(phase);
+  show("#match-picker", showPicker);
+  clearChildren("#match-picker-grid");
+  show("#match-picker-confirm", showPicker && phase === "select_openers");
+  if (showPicker) renderMatchPicker(match, phase);
+
+  show("#match-delivery-controls", myTurn && phase === "bowl_ball");
+  clearChildren("#match-delivery-grid");
+  if (myTurn && phase === "bowl_ball") {
+    const grid = document.querySelector("#match-delivery-grid");
+    (match.available_deliveries || []).forEach((opt) => {
+      const risk = opt.wide_risk_pct >= 15 ? " · high wide risk" : "";
+      grid.append(pickerButton(opt.label, `${opt.remaining} of ${opt.max} left${risk}`, {
+        disabled: opt.disabled,
+        onClick: () => matchAction("select_delivery", { delivery_code: opt.code }),
+      }));
+    });
+  }
+
+  show("#match-shot-controls", myTurn && phase === "bat_ball");
+  clearChildren("#match-shot-grid");
+  if (myTurn && phase === "bat_ball") {
+    document.querySelector("#match-shot-title").textContent = match.pending_delivery
+      ? `CHOOSE YOUR SHOT · FACING ${match.pending_delivery.label.toUpperCase()}`
+      : "CHOOSE YOUR SHOT";
+    const grid = document.querySelector("#match-shot-grid");
+    (match.shot_options || []).forEach((opt) => {
+      grid.append(pickerButton(opt.code, opt.label, {
+        onClick: () => matchAction("play_shot", { shot_code: opt.code }),
+      }));
+    });
+  }
+}
+
+function renderMatchPicker(match, phase) {
+  const grid = document.querySelector("#match-picker-grid");
+  const titleEl = document.querySelector("#match-picker-title");
+  const confirmBtn = document.querySelector("#match-picker-confirm");
+  grid.replaceChildren();
+  if (phase === "select_bowler") {
+    titleEl.textContent = `PICK THE BOWLER · MAX ${match.max_bowler_overs} OVER${match.max_bowler_overs === 1 ? "" : "S"} EACH`;
+    (match.available_bowlers || []).forEach((b) => {
+      const detail = `${b.bowling_style} · ${b.overs_bowled}/${b.overs_max} ov${b.reason ? ` · ${b.reason}` : ""}`;
+      grid.append(pickerButton(b.name, detail, {
+        disabled: !b.eligible,
+        onClick: () => matchAction("select_bowler", { bowler_id: b.player_id }),
+      }));
+    });
+    return;
+  }
+  const batters = match.available_batters || [];
+  if (phase === "select_next_batter") {
+    titleEl.textContent = "SEND IN THE NEXT BATTER (ANY AVAILABLE PLAYER)";
+    batters.forEach((p) => {
+      grid.append(pickerButton(p.name, [p.role, p.style_label].filter(Boolean).join(" · "), {
+        onClick: () => matchAction("select_next_batter", { batter_id: p.player_id }),
+      }));
+    });
+    return;
+  }
+  // select_openers: two-step pick
+  const key = `${match.match_id}:${match.innings_number}:${match.revision}`;
+  if (key !== openerPickKey) {
+    openerPickKey = key;
+    openerPick = [];
+  }
+  titleEl.textContent = "PICK TWO OPENERS · FIRST PICK FACES THE FIRST BALL";
+  batters.forEach((p) => {
+    const index = openerPick.indexOf(p.player_id);
+    grid.append(pickerButton(p.name, [p.role, p.style_label].filter(Boolean).join(" · "), {
+      selected: index >= 0,
+      title: index === 0 ? "On strike" : index === 1 ? "Non-striker" : "",
+      onClick: () => {
+        if (index >= 0) openerPick.splice(index, 1);
+        else if (openerPick.length < 2) openerPick.push(p.player_id);
+        renderMatchPicker(match, phase);
+      },
+    }));
+  });
+  confirmBtn.disabled = openerPick.length !== 2;
 }
 
 function renderScorecardModal(result) {
@@ -973,6 +1145,20 @@ function renderScorecardModal(result) {
     body.append(block);
   });
   panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function renderOversSetting(state, isAdmin) {
+  const locked = Boolean(state.tournament_overs_locked);
+  const overs = String(state.tournament_overs ?? 20);
+  const auctionSelect = document.querySelector("#room-overs-setting");
+  auctionSelect.value = overs;
+  auctionSelect.disabled = locked;
+  const field = document.querySelector("#tournament-overs-field");
+  field.classList.toggle("hidden", !isAdmin);
+  const tournamentSelect = document.querySelector("#tournament-overs-setting");
+  tournamentSelect.value = overs;
+  tournamentSelect.disabled = locked;
+  tournamentSelect.title = locked ? "Match overs are locked once a tournament match has started." : "";
 }
 
 function renderAdminControls(state, isAdmin) {
@@ -1697,6 +1883,23 @@ document.querySelectorAll(".speed-btn").forEach((btn) => {
     if (!activeMatchId) return;
     sendAction("set_match_speed", { match_id: activeMatchId, speed: btn.dataset.speed });
   });
+});
+["#room-overs-setting", "#tournament-overs-setting"].forEach((selector) => {
+  document.querySelector(selector).addEventListener("change", (event) => {
+    sendAction("set_tournament_overs", { total_overs: Number(event.target.value) });
+  });
+});
+document.querySelector("#simulate-ball-btn").addEventListener("click", () => matchAction("simulate_ball"));
+document.querySelectorAll("[data-toss-call]").forEach((btn) => {
+  btn.addEventListener("click", () => matchAction("call_toss", { call: btn.dataset.tossCall }));
+});
+document.querySelectorAll("[data-toss-decision]").forEach((btn) => {
+  btn.addEventListener("click", () => matchAction("decide_toss", { decision: btn.dataset.tossDecision }));
+});
+document.querySelector("#match-picker-confirm").addEventListener("click", () => {
+  if (openerPick.length === 2) {
+    matchAction("select_openers", { striker_id: openerPick[0], non_striker_id: openerPick[1] });
+  }
 });
 document.querySelector("#leave-match-btn").addEventListener("click", () => {
   if (activeMatchId) {

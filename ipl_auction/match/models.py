@@ -29,6 +29,9 @@ class BallEvent:
     overs_after: str
     commentary: str
     is_super_over: bool = False
+    delivery_code: str | None = None
+    delivery_label: str | None = None
+    shot_code: str | None = None
 
     def to_public_dict(self) -> dict[str, Any]:
         return {
@@ -55,6 +58,9 @@ class BallEvent:
             "overs_after": self.overs_after,
             "commentary": self.commentary,
             "is_super_over": self.is_super_over,
+            "delivery_code": self.delivery_code,
+            "delivery_label": self.delivery_label,
+            "shot_code": self.shot_code,
         }
 
 
@@ -97,6 +103,8 @@ class BowlerScorecard:
     maidens: int = 0
     runs_conceded: int = 0
     wickets: int = 0
+    wides: int = 0
+    dots: int = 0
 
     @property
     def overs_display(self) -> str:
@@ -120,6 +128,8 @@ class BowlerScorecard:
             "maidens": self.maidens,
             "runs_conceded": self.runs_conceded,
             "wickets": self.wickets,
+            "wides": self.wides,
+            "dots": self.dots,
             "economy": self.economy,
         }
 
@@ -143,13 +153,22 @@ class InningsState:
     noballs: int = 0
     striker_id: str | None = None
     non_striker_id: str | None = None
-    next_batter_index: int = 2
+    next_batter_index: int = 0
     current_bowler_id: str | None = None
     last_bowler_id: str | None = None
     current_over_runs: int = 0
     current_over_legal_balls: int = 0
     completed: bool = False
     all_out: bool = False
+    powerplay_end: int = 0
+    death_start: int = 1
+    max_bowler_overs: int = 4
+    momentum: float = 0.0
+    opener_ids: list[str] = field(default_factory=list)
+    pending_over_end: bool = False
+    bowler_overs: dict[str, int] = field(default_factory=dict)
+    over_delivery_counts: dict[str, int] = field(default_factory=dict)
+    over_boost_used: bool = False
     batting_order: list[str] = field(default_factory=list)
     batting_card: dict[str, BatterScorecard] = field(default_factory=dict)
     bowling_card: dict[str, BowlerScorecard] = field(default_factory=dict)
@@ -190,6 +209,7 @@ class InningsState:
                 self.batting_card[pid].to_public_dict()
                 for pid in self.batting_order
                 if pid in self.batting_card
+                and (self.batting_card[pid].batted or not self.is_super_over)
             ],
             "bowling": [
                 card.to_public_dict()

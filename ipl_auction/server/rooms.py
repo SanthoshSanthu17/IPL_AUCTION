@@ -9,7 +9,13 @@ from typing import Any
 
 from fastapi import WebSocket, WebSocketDisconnect
 
-from ipl_auction.match.constants import DEFAULT_MATCH_SPEED, MATCH_SPEED_DELAYS
+from ipl_auction.match.constants import (
+    AUTOPLAY_SPEEDS,
+    DEFAULT_MATCH_SPEED,
+    DEFAULT_TOURNAMENT_OVERS,
+    MATCH_SPEED_DELAYS,
+    TOURNAMENT_OVERS_OPTIONS,
+)
 from ipl_auction.match.engine import T20MatchSimulator
 from ipl_auction.players.models import Player
 from ipl_auction.players.sets import SET_BREAK_SECONDS, AuctionPlan
@@ -40,6 +46,21 @@ from ipl_auction.tournament.manager import (
 
 AUTO_ADVANCE_DELAY_SECONDS = 3.2
 
+# Interactive match actions (sent by the two competing franchises, or the host
+# for simulate_ball). Spectators are read-only.
+MATCH_PLAY_ACTIONS = frozenset(
+    {
+        "call_toss",
+        "decide_toss",
+        "select_openers",
+        "select_bowler",
+        "select_delivery",
+        "play_shot",
+        "select_next_batter",
+        "simulate_ball",
+    }
+)
+
 
 @dataclass
 class Connection:
@@ -68,6 +89,7 @@ class AuctionRoom:
     xi_locks: dict[str, list[str]] = field(default_factory=dict)
     franchise_ratings: dict[str, dict[str, Any]] = field(default_factory=dict)
     tournament: TournamentState | None = None
+    tournament_overs: int = DEFAULT_TOURNAMENT_OVERS
     tournament_seed: int = field(default_factory=lambda: secrets.randbelow(1_000_000) + 1)
     # Player sets: player_id -> set number for the players taking part, and the
     # player_ids that sat out of each set (kept so a later feature can rotate them).
@@ -198,7 +220,7 @@ class RoomManager:
             "leave_match",
             "set_match_speed",
             "get_match_scorecard",
-        }:
+        } | MATCH_PLAY_ACTIONS:
             try:
                 await self._handle_tournament_action(room, websocket, connection, message)
             except ValueError as error:
@@ -221,6 +243,9 @@ class RoomManager:
                 elif action == "set_timer":
                     self._require_admin(connection)
                     self._set_timer(room, message)
+                elif action == "set_tournament_overs":
+                    self._require_admin(connection)
+                    self._set_tournament_overs(room, message)
                 elif action == "pause":
                     self._require_admin(connection)
                     self._pause(room)
@@ -260,7 +285,29 @@ class RoomManager:
                 xi_locks=room.xi_locks,
                 franchise_ratings=room.franchise_ratings,
                 seed=room.tournament_seed,
+                total_overs=room.tournament_overs,
             )
+
+    @staticmethod
+    def _tournament_overs_locked(room: AuctionRoom) -> bool:
+        tournament = room.tournament
+        return tournament is not None and any(
+            fx.status != STATUS_UPCOMING for fx in tournament.fixtures
+        )
+
+    def _set_tournament_overs(self, room: AuctionRoom, message: dict[str, Any]) -> None:
+        raw = message.get("total_overs")
+        try:
+            overs = int(raw) if not isinstance(raw, bool) else -1
+        except (TypeError, ValueError):
+            overs = -1
+        if overs not in TOURNAMENT_OVERS_OPTIONS:
+            raise ValueError("Choose 5, 10 or 20 overs for the tournament matches.")
+        if self._tournament_overs_locked(room):
+            raise ValueError("Match overs cannot change once a tournament match has started.")
+        room.tournament_overs = overs
+        if room.tournament is not None:
+            room.tournament.total_overs = overs
 
     async def _handle_tournament_action(
         self,
@@ -293,7 +340,7 @@ class RoomManager:
                 session = tournament.sessions.get(match_id)
                 if session is not None:
                     async with session.lock:
-                        snap = session.simulator.snapshot()
+                        snap = self._session_snapshot(session)
                         await websocket.send_json(
                             {"type": "match_snapshot", "match": snap, "role": "spectator"}
                         )
@@ -337,8 +384,7 @@ class RoomManager:
             async with session.lock:
                 session.spectators.discard(websocket)
                 session.participants.add(websocket)
-                snap = session.simulator.snapshot()
-                snap["speed"] = session.speed
+                snap = self._session_snapshot(session)
                 await websocket.send_json(
                     {
                         "type": "match_snapshot",
@@ -373,8 +419,7 @@ class RoomManager:
                 else:
                     session.spectators.add(websocket)
                     role = "spectator"
-                snap = session.simulator.snapshot()
-                snap["speed"] = session.speed
+                snap = self._session_snapshot(session)
                 await websocket.send_json(
                     {
                         "type": "match_snapshot",
@@ -382,6 +427,12 @@ class RoomManager:
                         "role": role,
                     }
                 )
+            return
+
+        if action in MATCH_PLAY_ACTIONS:
+            await self._handle_match_play(
+                room, tournament, websocket, connection, action, match_id, message
+            )
             return
 
         if action == "set_match_speed":
@@ -393,28 +444,173 @@ class RoomManager:
 
             speed = str(message.get("speed") or "").strip().casefold()
             if speed not in MATCH_SPEED_DELAYS:
-                raise ValueError("Invalid match speed. Choose normal, fast, or skip.")
+                raise ValueError("Invalid match speed. Choose manual, normal, fast, or skip.")
 
             if speed == "skip":
                 await self._skip_match_to_result(room, tournament, session)
-            else:
-                async with session.lock:
-                    session.speed = speed
-                    snap = session.simulator.snapshot()
-                    snap["speed"] = session.speed
-                    watchers = session.all_watchers()
-                for watcher in watchers:
-                    try:
-                        await watcher.send_json(
-                            {
-                                "type": "score_update",
-                                "match_id": session.match_id,
-                                "match": snap,
-                            }
+                return
+
+            async with session.lock:
+                session.speed = speed
+                session.participants.add(websocket)
+                session.spectators.discard(websocket)
+                snap = self._session_snapshot(session)
+                participants, spectators = list(session.participants), list(session.spectators)
+                if speed in AUTOPLAY_SPEEDS:
+                    if session.task is None or session.task.done():
+                        session.task = asyncio.create_task(
+                            self._run_match_loop(room, tournament, session)
                         )
-                    except (WebSocketDisconnect, RuntimeError):
-                        pass
+                else:
+                    task, session.task = session.task, None
+                    if task is not None and not task.done():
+                        task.cancel()
+            await self._push_match(
+                participants,
+                spectators,
+                {
+                    "type": "match_update",
+                    "match_id": session.match_id,
+                    "event": "speed",
+                    "ball": None,
+                    "match": snap,
+                },
+            )
             return
+
+    @staticmethod
+    def _session_snapshot(session: LiveMatchSession) -> dict[str, Any]:
+        snap = session.simulator.snapshot()
+        snap["speed"] = session.speed
+        return snap
+
+    @staticmethod
+    def _completed_deliveries(simulator: T20MatchSimulator) -> list[Any]:
+        result = simulator.result
+        if result is None:
+            return []
+        return [ev for inn in result.innings for ev in inn.deliveries] + [
+            ev for inn in result.super_over_innings for ev in inn.deliveries
+        ]
+
+    @staticmethod
+    async def _push_match(
+        participants: list[WebSocket],
+        spectators: list[WebSocket],
+        base: dict[str, Any],
+    ) -> None:
+        for role, sockets in (("participant", participants), ("spectator", spectators)):
+            for watcher in sockets:
+                try:
+                    await watcher.send_json({**base, "role": role})
+                except (WebSocketDisconnect, RuntimeError):
+                    pass
+
+    async def _handle_match_play(
+        self,
+        room: AuctionRoom,
+        tournament: TournamentState,
+        websocket: WebSocket,
+        connection: Connection,
+        action: str,
+        match_id: str,
+        message: dict[str, Any],
+    ) -> None:
+        session = tournament.sessions.get(match_id)
+        if session is None:
+            raise ValueError("This match is not live right now.")
+        is_player = session.fixture.involves_team(connection.team_id)
+
+        ball = None
+        event_name = "update"
+        async with session.lock:
+            sim = session.simulator
+            if sim.completed:
+                raise ValueError("This match has already finished.")
+            if session.speed in AUTOPLAY_SPEEDS:
+                raise ValueError("Auto-play is running. Switch to Manual to take control.")
+
+            if action == "simulate_ball":
+                if not (is_player or connection.is_admin):
+                    raise ValueError("Only the competing franchises or the host can auto-play.")
+                ball_event, transition = sim.step_ball()
+                ball = ball_event
+                event_name = "wicket" if ball_event is not None and ball_event.is_wicket else "ball"
+            else:
+                if not is_player:
+                    raise ValueError("Only the two competing franchises can play this match.")
+                actor = sim.actor_team_id()
+                if actor != connection.team_id:
+                    waiting = sim.teams[actor]["name"] if actor else "the other side"
+                    raise ValueError(f"It is not your turn. Waiting for {waiting}.")
+                transition = {"innings_completed": False, "match_completed": False}
+                if action == "call_toss":
+                    sim.call_toss(message.get("call"))
+                    event_name = "toss"
+                elif action == "decide_toss":
+                    sim.decide_toss(message.get("decision"))
+                    event_name = "toss_decision"
+                elif action == "select_openers":
+                    sim.select_openers(
+                        str(message.get("striker_id") or ""),
+                        str(message.get("non_striker_id") or ""),
+                    )
+                    event_name = "openers"
+                elif action == "select_bowler":
+                    sim.select_bowler(str(message.get("bowler_id") or ""))
+                    event_name = "bowler"
+                elif action == "select_delivery":
+                    ball, transition = sim.select_delivery(
+                        str(message.get("delivery_code") or "")
+                    )
+                    event_name = "wide" if ball is not None else "delivery"
+                elif action == "play_shot":
+                    ball, transition = sim.play_shot(str(message.get("shot_code", "")))
+                    event_name = "wicket" if ball.is_wicket else "ball"
+                elif action == "select_next_batter":
+                    sim.select_next_batter(str(message.get("batter_id") or ""))
+                    event_name = "next_batter"
+
+            if is_player:
+                session.spectators.discard(websocket)
+                session.participants.add(websocket)
+
+            is_done = sim.completed
+            if transition.get("super_over_started"):
+                event_name = "super_over_started"
+            elif transition.get("innings_completed") and not is_done:
+                event_name = "innings_completed"
+            snap = self._session_snapshot(session)
+            participants, spectators = list(session.participants), list(session.spectators)
+            result = sim.result
+            deliveries = self._completed_deliveries(sim) if is_done else []
+
+        if not is_done:
+            await self._push_match(
+                participants,
+                spectators,
+                {
+                    "type": "match_update",
+                    "match_id": session.match_id,
+                    "event": event_name,
+                    "ball": ball.to_public_dict() if ball is not None else None,
+                    "match": snap,
+                },
+            )
+            return
+
+        assert result is not None
+        await self._finalize_live_session(
+            room=room,
+            tournament=tournament,
+            session=session,
+            result=result,
+            deliveries=deliveries,
+            snap=snap,
+            participants=participants,
+            spectators=spectators,
+            last_ball=ball,
+        )
 
     @staticmethod
     async def _detach_from_other_sessions(
@@ -471,6 +667,7 @@ class RoomManager:
                     team_b_name=team_b_state.team.name,
                     team_b_xi=team_b_xi,
                     seed=fixture.seed,
+                    total_overs=tournament.total_overs,
                 )
                 session = LiveMatchSession(
                     match_id=match_id,
@@ -485,8 +682,7 @@ class RoomManager:
         async with session.lock:
             session.spectators.discard(websocket)
             session.participants.add(websocket)
-            snap = session.simulator.snapshot()
-            snap["speed"] = session.speed
+            snap = self._session_snapshot(session)
             await websocket.send_json(
                 {
                     "type": "match_started" if created_new else "match_snapshot",
@@ -496,9 +692,6 @@ class RoomManager:
             )
 
         if created_new:
-            session.task = asyncio.create_task(
-                self._run_match_loop(room, tournament, session)
-            )
             await self.broadcast(room)
 
     async def _skip_match_to_result(
@@ -520,13 +713,10 @@ class RoomManager:
                 session.simulator.run_to_completion()
             result = session.simulator.result
             assert result is not None
-            deliveries = (
-                [ev for inn in result.innings for ev in inn.deliveries]
-                + [ev for inn in result.super_over_innings for ev in inn.deliveries]
-            )
-            snap = session.simulator.snapshot()
-            snap["speed"] = "skip"
-            watchers = session.all_watchers()
+            deliveries = self._completed_deliveries(session.simulator)
+            session.speed = "skip"
+            snap = self._session_snapshot(session)
+            participants, spectators = list(session.participants), list(session.spectators)
 
         await self._finalize_live_session(
             room=room,
@@ -535,7 +725,8 @@ class RoomManager:
             result=result,
             deliveries=deliveries,
             snap=snap,
-            watchers=watchers,
+            participants=participants,
+            spectators=spectators,
         )
 
     async def _run_match_loop(
@@ -544,67 +735,26 @@ class RoomManager:
         tournament: TournamentState,
         session: LiveMatchSession,
     ) -> None:
+        """Auto-play: the computer makes both sides' choices until switched to Manual."""
         try:
             while True:
                 async with session.lock:
-                    delay = MATCH_SPEED_DELAYS.get(session.speed, 1.2)
+                    speed = session.speed
+                if speed not in AUTOPLAY_SPEEDS:
+                    break
+                delay = MATCH_SPEED_DELAYS.get(speed, 1.2)
                 if delay > 0:
                     await asyncio.sleep(delay)
 
                 async with session.lock:
-                    if session.simulator.completed:
+                    if session.simulator.completed or session.speed not in AUTOPLAY_SPEEDS:
                         break
                     ball_event, transition = session.simulator.step_ball()
-                    snap = session.simulator.snapshot()
-                    snap["speed"] = session.speed
-                    watchers = session.all_watchers()
+                    snap = self._session_snapshot(session)
+                    participants, spectators = list(session.participants), list(session.spectators)
                     is_done = session.simulator.completed
                     result = session.simulator.result
-                    deliveries = (
-                        (
-                            [ev for inn in result.innings for ev in inn.deliveries]
-                            + [ev for inn in result.super_over_innings for ev in inn.deliveries]
-                        )
-                        if is_done and result
-                        else []
-                    )
-
-                if ball_event is not None:
-                    payload = {
-                        "type": "ball_update",
-                        "match_id": session.match_id,
-                        "ball": ball_event.to_public_dict(),
-                        "match": snap,
-                    }
-                    for watcher in watchers:
-                        try:
-                            await watcher.send_json(payload)
-                        except (WebSocketDisconnect, RuntimeError):
-                            pass
-
-                if transition.get("super_over_started"):
-                    so_payload = {
-                        "type": "super_over_started",
-                        "match_id": session.match_id,
-                        "super_over_round": transition.get("super_over_round", 1),
-                        "match": snap,
-                    }
-                    for watcher in watchers:
-                        try:
-                            await watcher.send_json(so_payload)
-                        except (WebSocketDisconnect, RuntimeError):
-                            pass
-                elif transition.get("innings_completed") and not is_done:
-                    inn_payload = {
-                        "type": "innings_completed",
-                        "match_id": session.match_id,
-                        "match": snap,
-                    }
-                    for watcher in watchers:
-                        try:
-                            await watcher.send_json(inn_payload)
-                        except (WebSocketDisconnect, RuntimeError):
-                            pass
+                    deliveries = self._completed_deliveries(session.simulator) if is_done else []
 
                 if is_done and result is not None:
                     await self._finalize_live_session(
@@ -614,9 +764,31 @@ class RoomManager:
                         result=result,
                         deliveries=deliveries,
                         snap=snap,
-                        watchers=watchers,
+                        participants=participants,
+                        spectators=spectators,
+                        last_ball=ball_event,
                     )
                     break
+
+                if transition.get("super_over_started"):
+                    event_name = "super_over_started"
+                elif transition.get("innings_completed"):
+                    event_name = "innings_completed"
+                elif ball_event is not None and ball_event.is_wicket:
+                    event_name = "wicket"
+                else:
+                    event_name = "ball"
+                await self._push_match(
+                    participants,
+                    spectators,
+                    {
+                        "type": "match_update",
+                        "match_id": session.match_id,
+                        "event": event_name,
+                        "ball": ball_event.to_public_dict() if ball_event is not None else None,
+                        "match": snap,
+                    },
+                )
         except asyncio.CancelledError:
             return
 
@@ -628,7 +800,9 @@ class RoomManager:
         result: Any,
         deliveries: list[Any],
         snap: dict[str, Any],
-        watchers: list[WebSocket],
+        participants: list[WebSocket],
+        spectators: list[WebSocket],
+        last_ball: Any = None,
     ) -> None:
         async with tournament.lock:
             if session.fixture.status == STATUS_COMPLETED:
@@ -640,17 +814,17 @@ class RoomManager:
             )
             tournament.sessions.pop(session.match_id, None)
 
-        completed_payload = {
-            "type": "match_completed",
-            "match_id": session.match_id,
-            "match": snap,
-            "result": result.to_public_dict(),
-        }
-        for watcher in watchers:
-            try:
-                await watcher.send_json(completed_payload)
-            except (WebSocketDisconnect, RuntimeError):
-                pass
+        await self._push_match(
+            participants,
+            spectators,
+            {
+                "type": "match_completed",
+                "match_id": session.match_id,
+                "match": snap,
+                "ball": last_ball.to_public_dict() if last_ball is not None else None,
+                "result": result.to_public_dict(),
+            },
+        )
 
         if updates.get("standings_updated"):
             await self._broadcast_room_event(
@@ -727,17 +901,7 @@ class RoomManager:
             live_score = None
             session = tournament.sessions.get(fx.match_id)
             if session is not None:
-                sim = session.simulator
-                inn = sim.current_innings
-                live_score = {
-                    "batting_team_id": inn.batting_team_id,
-                    "batting_team_name": inn.batting_team_name,
-                    "runs": inn.runs,
-                    "wickets": inn.wickets,
-                    "overs": inn.overs_display,
-                    "target": inn.target,
-                    "speed": session.speed,
-                }
+                live_score = {**session.simulator.live_summary(), "speed": session.speed}
 
             fixtures_data.append(
                 {
@@ -761,6 +925,8 @@ class RoomManager:
         return {
             "active": True,
             "format_type": tournament.format_type,
+            "total_overs": tournament.total_overs,
+            "overs_locked": self._tournament_overs_locked(room),
             "total_teams": len(tournament.rankings),
             "current_stage": tournament.current_stage_label(),
             "rankings": list(tournament.rankings),
@@ -880,6 +1046,9 @@ class RoomManager:
             "max_overseas_xi": MAX_OVERSEAS_XI,
             "complete_reason": room.complete_reason,
             "xi": self._xi_summary(room),
+            "tournament_overs": room.tournament_overs,
+            "tournament_overs_options": list(TOURNAMENT_OVERS_OPTIONS),
+            "tournament_overs_locked": self._tournament_overs_locked(room),
             "tournament": (
                 self._tournament_snapshot(room, room.tournament)
                 if room.tournament is not None

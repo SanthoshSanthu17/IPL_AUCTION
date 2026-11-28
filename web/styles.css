@@ -851,3 +851,86 @@ button.xi-card:hover { border-color: #c7d3e4; background: #f8fafc; }
   .xi-grid { grid-template-columns: 1fr; }
   .xi-actions { justify-content: space-between; }
 }
+
+/* Interactive match controls */
+.match-phase-banner {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 10px 14px;
+  border: 1px solid #f0d7a8;
+  border-radius: 8px;
+  background: #fff8ea;
+}
+.match-phase-banner strong { color: var(--blue-deep); font: 800 13px "Manrope", sans-serif; }
+.match-phase-banner span { color: var(--muted); font-size: 11px; }
+.match-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+.match-controls {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #f7faff;
+}
+.match-choice-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.match-picker-grid,
+.match-delivery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+}
+.match-shot-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+.picker-btn {
+  display: grid;
+  gap: 2px;
+  min-height: 48px;
+  padding: 8px 10px;
+  text-align: left;
+}
+.picker-btn strong { font-size: 12px; }
+.picker-btn small { color: var(--muted); font-size: 9px; font-weight: 600; }
+.picker-btn.selected { border-color: var(--blue); background: var(--blue-soft); }
+.picker-btn:disabled { opacity: .5; cursor: not-allowed; }
+.match-shot-grid .picker-btn { text-align: center; justify-items: center; }
+.match-shot-grid .picker-btn strong { font: 800 20px "Manrope", sans-serif; }
+.match-feed-wrap { display: grid; gap: 6px; margin-top: 14px; }
+.match-feed {
+  display: grid;
+  gap: 4px;
+  max-height: 220px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+.match-feed li {
+  padding: 6px 10px;
+  border-left: 3px solid #d5dfec;
+  background: #fafbfd;
+  color: var(--ink, #1c2a3d);
+  font-size: 11px;
+  line-height: 1.4;
+}
+.match-feed li.feed-info { border-left-color: var(--orange); color: var(--muted); font-style: italic; }
+.match-feed li:first-child { font-weight: 700; border-left-color: var(--blue); }
+@media (max-width: 640px) {
+  .match-shot-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px; }
+  .match-picker-grid,
+  .match-delivery-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
