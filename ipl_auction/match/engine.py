@@ -328,10 +328,11 @@ class T20MatchSimulator:
             "bowlers": eligible_bowlers(xi),
         }
 
-    def _log(self, kind: str, text: str) -> None:
-        self.commentary_log.append(
-            {"kind": kind, "text": text, "sequence": self.sequence, "revision": self.revision}
-        )
+    def _log(self, kind: str, text: str, ball_label: str | None = None) -> None:
+        entry = {"kind": kind, "text": text, "sequence": self.sequence, "revision": self.revision}
+        if ball_label:
+            entry["ball_label"] = ball_label
+        self.commentary_log.append(entry)
         if len(self.commentary_log) > 200:
             del self.commentary_log[:-200]
 
@@ -679,7 +680,7 @@ class T20MatchSimulator:
             delivery_label=delivery.label,
         )
         inn.deliveries.append(event)
-        self._log("ball", text)
+        self._log("ball", text, ball_label=f"{over_index}.{ball_no}")
         return event
 
     # ------------------------------------------------------------------- shots
@@ -823,7 +824,7 @@ class T20MatchSimulator:
             shot_code=shot_code,
         )
         inn.deliveries.append(event)
-        self._log("ball", text)
+        self._log("ball", text, ball_label=f"{over_index}.{ball_no}")
         self.pending_delivery = None
 
         over_finished = inn.current_over_legal_balls == BALLS_PER_OVER
@@ -1342,7 +1343,12 @@ class T20MatchSimulator:
                 )
 
         feed = [
-            {"kind": e["kind"], "text": e["text"], "sequence": e["sequence"]}
+            {
+                "kind": e["kind"],
+                "text": e["text"],
+                "sequence": e["sequence"],
+                **({"ball_label": e["ball_label"]} if e.get("ball_label") else {}),
+            }
             for e in self.commentary_log[-COMMENTARY_FEED_SIZE:]
         ]
         feed.reverse()

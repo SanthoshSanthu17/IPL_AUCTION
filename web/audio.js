@@ -3,6 +3,7 @@
   const WELCOME_FILE = "welcome.mp3";
   const WELCOME_VOLUME = 0.5;
   const TEAM_VOLUME = 0.9;
+  const TEAM_VOLUME_WITH_VOICE = 0.35; // keeps the spoken "SOLD!" line audible over the franchise music
   const TEAM_MAX_MS = 8000;
   const FADE_MS = 800;
   const MUTE_KEY = "iplAuctionMuted";
@@ -57,7 +58,7 @@
     if (muted || !teamId) return;
     clearTimeout(teamStopTimer);
     if (teamAudio) teamAudio.pause();
-    teamAudio = makeAudio(`${teamId}.mp3`, false, TEAM_VOLUME);
+    teamAudio = makeAudio(`${teamId}.mp3`, false, window.AuctionVoice && window.AuctionVoice.isEnabled() ? TEAM_VOLUME_WITH_VOICE : TEAM_VOLUME);
     teamAudio.play().catch(() => { /* file missing or blocked */ });
     const current = teamAudio;
     teamStopTimer = setTimeout(() => fadeOut(current), TEAM_MAX_MS);

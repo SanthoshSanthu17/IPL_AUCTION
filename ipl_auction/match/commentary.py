@@ -4,83 +4,83 @@ import random
 from typing import Any
 
 WIDE = [
-    "{bowler} sprays the {delivery} way down the leg side. Wide.",
-    "Too much movement! {bowler}'s {delivery} drifts outside the tramlines. Wide called.",
-    "{bowler} tries the {delivery} and loses the line completely. Wide.",
-    "Umpire stretches both arms. The {delivery} from {bowler} was never in play. Wide.",
-    "{striker} leaves it alone and the umpire signals wide. The {delivery} was a touch ambitious.",
-    "Risk taken, risk punished: {bowler}'s {delivery} is too wide. Extra run.",
+    "{bowler} sprays it way down the leg side. Wide.",
+    "Too much movement! {bowler} drifts outside the tramlines. Wide called.",
+    "{bowler} loses the line completely. Wide.",
+    "Umpire stretches both arms. That from {bowler} was never in play. Wide.",
+    "{striker} leaves it alone and the umpire signals wide. A touch ambitious from the bowler.",
+    "Risk taken, risk punished: {bowler} is too wide. Extra run.",
 ]
 
 SIX = [
-    "{striker} swings hard at the {delivery} and sends it deep into the stands. SIX!",
+    "{striker} swings hard and sends it deep into the stands. SIX!",
     "SIX! {striker} clears the rope with ease off {bowler}.",
     "Absolutely smashed! {striker} launches {bowler} over long-on for a maximum.",
-    "{striker} stays leg side and slog-sweeps the {delivery} out of the ground. Huge SIX!",
-    "That is gone! {striker} picks the {delivery} early and deposits it over midwicket.",
+    "{striker} stays leg side and slog-sweeps it out of the ground. Huge SIX!",
+    "That is gone! {striker} picks it early and deposits it over midwicket.",
     "{bowler} gets the length wrong and {striker} makes him pay. Into the crowd for SIX.",
 ]
 
 FOUR = [
-    "FOUR! {striker} times the {delivery} perfectly through the covers.",
+    "FOUR! {striker} times it perfectly through the covers.",
     "{striker} pierces the gap and the ball races to the fence. FOUR.",
     "Cracked away! {bowler} drops short and {striker} pulls it for FOUR.",
-    "{striker} opens the face and the {delivery} runs away past third man. FOUR.",
+    "{striker} opens the face and it runs away past third man. FOUR.",
     "No need to run. {striker} drives {bowler} straight back down the ground. FOUR!",
-    "Beautiful timing from {striker}. The {delivery} is dispatched to the boundary.",
+    "Beautiful timing from {striker}. Dispatched to the boundary.",
 ]
 
 TWO = [
-    "{striker} places the {delivery} into the gap and comes back for the second. Two runs.",
+    "{striker} places it into the gap and comes back for the second. Two runs.",
     "Good running! {striker} pushes {bowler} into the deep and they get two.",
     "{striker} finds the gap at midwicket. They turn sharply and complete two.",
-    "Two more. {striker} works the {delivery} away and keeps the scoreboard moving.",
+    "Two more. {striker} works it away and keeps the scoreboard moving.",
 ]
 
 ONE = [
-    "{striker} nudges the {delivery} into the leg side for a quick single.",
+    "{striker} nudges it into the leg side for a quick single.",
     "Single taken. {striker} tucks {bowler} off the pads.",
     "{striker} drops it at his feet and scampers through for one.",
-    "Mistimed but safe. {striker} squeezes the {delivery} out for a single.",
+    "Mistimed but safe. {striker} squeezes it out for a single.",
     "{striker} pushes to cover and the batters rotate the strike.",
     "Worked away for one by {striker}. The pair keep the scoreboard ticking.",
 ]
 
 DOT = [
-    "{bowler} nails the {delivery}. {striker} can only defend. Dot ball.",
+    "{bowler} nails the length. {striker} can only defend. Dot ball.",
     "Dot ball. {striker} pushes forward and finds the fielder.",
-    "{striker} swings and misses the {delivery}! Beaten all ends up.",
+    "{striker} swings and misses! Beaten all ends up.",
     "Tight line from {bowler}. {striker} has no room and it is a dot.",
-    "{striker} looks for the big hit but the {delivery} is too good. No run.",
+    "{striker} looks for the big hit but it's too good. No run.",
     "Straight to the man in the ring. Dot ball, and the pressure builds on {striker}.",
-    "{striker} blocks the {delivery} out. Nothing doing for the batters.",
+    "{striker} blocks it out. Nothing doing for the batters.",
 ]
 
 WICKET: dict[str, list[str]] = {
     "caught": [
-        "OUT! {striker} goes after the {delivery} and finds the fielder in the deep. {bowler} strikes!",
-        "Caught! {striker} mistimes the {delivery} and the simple catch is taken.",
+        "OUT! {striker} goes after and finds the fielder in the deep. {bowler} strikes!",
+        "Caught! {striker} mistimes and the simple catch is taken.",
         "WICKET! {bowler} lures {striker} into the big shot and the fielder holds on.",
         "{striker} skies it and it lands safely in the hands. {bowler} gets his man.",
     ],
     "bowled": [
-        "BOWLED! The {delivery} from {bowler} sneaks through and the stumps are shattered. {striker} has to go.",
-        "Timber! {striker} is clean bowled by a beauty of a {delivery}.",
+        "BOWLED! The delivery from {bowler} sneaks through and the stumps are shattered. {striker} has to go.",
+        "Timber! {striker} is clean bowled by a beauty of a delivery.",
         "WICKET! {striker} plays the wrong line and {bowler} hits the top of off.",
-        "Through the gate! {bowler}'s {delivery} rattles the stumps.",
+        "Through the gate! {bowler}'s delivery rattles the stumps.",
     ],
     "lbw": [
-        "LBW! {striker} is trapped in front by the {delivery} and the finger goes up.",
+        "LBW! {striker} is trapped in front by and the finger goes up.",
         "Plumb in front! {bowler} appeals and {striker} is given out leg before.",
         "{striker} misses the sweep, the ball hits the pad. Out LBW to {bowler}.",
     ],
     "caught behind": [
-        "Edged and taken! {striker} feathers the {delivery} through to the keeper.",
-        "CAUGHT BEHIND! The faintest of nicks off {bowler}'s {delivery} and the keeper gloves it.",
+        "Edged and taken! {striker} feathers through to the keeper.",
+        "CAUGHT BEHIND! The faintest of nicks off {bowler}'s delivery and the keeper gloves it.",
         "{striker} gets a thin edge and the wicketkeeper pouches it. {bowler} celebrates.",
     ],
     "stumped": [
-        "STUMPED! {striker} charges at the {delivery} and the keeper whips off the bails.",
+        "STUMPED! {striker} charges at and the keeper whips off the bails.",
         "Beaten in flight! {striker} is out of the crease and the stumping is completed.",
         "Lightning hands behind the stumps. {striker} is stumped off {bowler}.",
     ],
